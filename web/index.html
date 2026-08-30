@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Build Tracker — Faker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow"></div>
+    <header class="top">
+      <div>
+        <p class="eyebrow">KR ranked collector · one timeline per game, every shop</p>
+        <h1>Build Tracker</h1>
+      </div>
+      <div class="player-picker" id="player-picker">
+        <div class="player-chip" id="player-chip">
+          <div class="icon-fallback">?</div>
+          <div>
+            <strong>Pick a player</strong>
+            <span>Search the KR corpus</span>
+          </div>
+        </div>
+        <input id="player-search" type="search" placeholder="Oner, Faker, name#tag…" autocomplete="off" />
+        <div class="player-results" id="player-results" hidden></div>
+      </div>
+    </header>
+
+    <section class="status-bar">
+      <div class="stat"><label>Unique games</label><b id="stat-games">0</b></div>
+      <div class="stat"><label>Perspectives</label><b id="stat-perspectives">0</b></div>
+      <div class="stat"><label>Shop visits</label><b id="stat-visits">0</b></div>
+      <div class="stat"><label>Last sync</label><b id="stat-sync">never</b></div>
+      <div class="sync-box">
+        <label>Pull last</label>
+        <input id="sync-count" type="number" min="1" max="50" value="15" />
+        <button id="sync-btn" type="button">Sync Faker</button>
+        <a class="export" id="export-btn" href="/api/export">Export JSON</a>
+      </div>
+    </section>
+    <p class="log" id="log">Add a Riot API key to <code>.env</code> as <code>RIOT_API_KEY</code>, then sync.</p>
+
+    <main>
+      <section class="panel">
+        <div class="match-list" id="match-list"></div>
+        <article class="match-detail empty" id="match-detail">
+          <p>Pick a game. The timeline is the whole lobby: whoever bought next, in order. Search a player only to find their games, not to make them the lead.</p>
+        </article>
+      </section>
+    </main>
+
+    <script src="/static/app.js?v=narrator2"></script>
+  </body>
+</html>

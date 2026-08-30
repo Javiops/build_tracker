@@ -1,0 +1,2152 @@
+[
+  {
+    "id": "Faker",
+    "team": "T1",
+    "role": "MID",
+    "league": "LCK",
+    "also": [
+      "Hide on bush"
+    ],
+    "ids": [
+      [
+        "Hide on bush",
+        "KR1"
+      ],
+      [
+        "Faker",
+        "구라티"
+      ]
+    ],
+    "ok": true,
+    "label": "T1 Faker",
+    "puuid": "LiSAyOSAIXd30A0Od-9RH1-5UR7RKDtYszdyJ3-6-AdbeDFhWB0jExX4-fcXb3CUqb_FvfTzbkQB_Q",
+    "game_name": "Hide on bush",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Oner",
+    "team": "T1",
+    "role": "JNG",
+    "league": "LCK",
+    "also": [
+      "오 너"
+    ],
+    "ids": [
+      [
+        "오 너",
+        "111"
+      ],
+      [
+        "Oner",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "T1 Oner",
+    "puuid": "1vQ4IWjQiM-wVNt0uBA1skr3w-CZZN3NbdzQZBsbXnt-PSQsCW_P8rpiQfv9eI28Y6VyaDKSQv_C1Q",
+    "game_name": "오 너",
+    "tag_line": "111",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Painter",
+    "team": "T1",
+    "role": "JNG",
+    "league": "LCK",
+    "also": [
+      "T1 Painter"
+    ],
+    "ids": [
+      [
+        "T1 Painter",
+        "KR3"
+      ],
+      [
+        "Painter",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "T1 Painter",
+    "puuid": "eYRfFrax6eNALpzDPMOHSGnoV4VFxqXxE9B8XxSVPkZ3V3M9F-e0t16YVd-VS5AUI4pZm--l3TKGJA",
+    "game_name": "T1 Painter",
+    "tag_line": "KR3",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Doran",
+    "team": "T1",
+    "role": "TOP",
+    "league": "LCK",
+    "also": [
+      "도란"
+    ],
+    "ids": [
+      [
+        "Doran",
+        "KR1"
+      ],
+      [
+        "T1 Doran",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "T1 Doran",
+    "puuid": "4cgBY-v5SOZi1YYW-1RdnBjYZTntGLkps6JlHL35hY9n3O-uiZvsoT59i4PoK4Cf5Jmvch7BNI3aDA",
+    "game_name": "Doran",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Peyz",
+    "team": "T1",
+    "role": "BOT",
+    "league": "LCK",
+    "ids": [
+      [
+        "Peyz",
+        "KR11"
+      ],
+      [
+        "Peyz",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "T1 Peyz",
+    "puuid": "2KcV3JlijO1pIWAj9vJ7oosJszK7PJzpudIYa1k3om0b_muNyAh2hEKv6OBzov2Ay3c7XVDaijaBVQ",
+    "game_name": "Peyz",
+    "tag_line": "KR11",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Keria",
+    "team": "T1",
+    "role": "SUP",
+    "league": "LCK",
+    "also": [
+      "케리아"
+    ],
+    "ids": [
+      [
+        "케리아",
+        "KR1"
+      ],
+      [
+        "Keria",
+        "KR1"
+      ]
+    ],
+    "label": "T1 Keria",
+    "ok": false
+  },
+  {
+    "id": "Kiin",
+    "team": "GEN",
+    "role": "TOP",
+    "league": "LCK",
+    "also": [
+      "기인"
+    ],
+    "ids": [
+      [
+        "kiin",
+        "KR1"
+      ],
+      [
+        "Kiin",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "GEN Kiin",
+    "puuid": "PUHBfp_Wkxbhtrzc18nNEH3cO46hmu5a7v_IBX3_N0kn0kJ-51ZPOd3rnBMGAbpqGEFb4E5a_lztIg",
+    "game_name": "kiin",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Canyon",
+    "team": "GEN",
+    "role": "JNG",
+    "league": "LCK",
+    "also": [
+      "캐니언"
+    ],
+    "ids": [
+      [
+        "Canyon",
+        "KR1"
+      ],
+      [
+        "캐니언",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "GEN Canyon",
+    "puuid": "x_MxgAcQDSPkt1l4TxaD7HL9PAHU9D9KbCQa7Mpgc4_XEoHjfcGd98lSG4th07lJqlCO1S60sZ2Cwg",
+    "game_name": "Canyon",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Chovy",
+    "team": "GEN",
+    "role": "MID",
+    "league": "LCK",
+    "also": [
+      "쵸비"
+    ],
+    "ids": [
+      [
+        "Chovy",
+        "KR1"
+      ],
+      [
+        "쵸비",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "GEN Chovy",
+    "puuid": "R-gQpR1WFXS87zb89Fl9ITflyGxaIFmbGu2up5HqNZ8JR6QaT5sYjOKXUDzWXJox2C1E2dGgQjJBuw",
+    "game_name": "Chovy",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Ruler",
+    "team": "GEN",
+    "role": "BOT",
+    "league": "LCK",
+    "also": [
+      "룰러"
+    ],
+    "ids": [
+      [
+        "Ruler",
+        "KR1"
+      ],
+      [
+        "GEN Ruler",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "GEN Ruler",
+    "puuid": "hfobpzvkFwOakMoQeig_DVELCB8orfOnfRxsIm1rw27r7qjOETJSjR-7vUSKX8CQqPGuiZX7m4b7OA",
+    "game_name": "Ruler",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Duro",
+    "team": "GEN",
+    "role": "SUP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Duro",
+        "Gen"
+      ],
+      [
+        "Duro",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "GEN Duro",
+    "puuid": "qTfP2hkN48EuTG57ExWXl33JaiiP4PARYkzdvHcI8Wa-VR2nw5kFU4SdOf4duAByJz_nxLAdLSt5jg",
+    "game_name": "Duro",
+    "tag_line": "Gen",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Zeus",
+    "team": "HLE",
+    "role": "TOP",
+    "league": "LCK",
+    "also": [
+      "제우스"
+    ],
+    "ids": [
+      [
+        "제우스",
+        "KR1"
+      ],
+      [
+        "Zeus",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "HLE Zeus",
+    "puuid": "SavT3GbasE7SleyX5iFVFJWSmlx75aLpa7eCNGBjDwSrczBod4DdUd6Wb2GOr_wAi3yJe3eg8mGAyw",
+    "game_name": "제우스",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Kanavi",
+    "team": "HLE",
+    "role": "JNG",
+    "league": "LCK",
+    "also": [
+      "카나비"
+    ],
+    "ids": [
+      [
+        "Kanavi",
+        "KR1"
+      ],
+      [
+        "HLE Kanavi",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "HLE Kanavi",
+    "puuid": "-Cai0HDV-VklJvwTdqC9X5NhLKqf9FyBXmXMR1tCiRXXjjuzQQ_ZldXEzC7Pc6jpI3QKYMcE90DYnA",
+    "game_name": "Kanavi",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Zeka",
+    "team": "HLE",
+    "role": "MID",
+    "league": "LCK",
+    "also": [
+      "제카"
+    ],
+    "ids": [
+      [
+        "Zeka",
+        "KR1"
+      ],
+      [
+        "제카",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "HLE Zeka",
+    "puuid": "c3cLZaECnpxlFEv70rH8CjFjjhapDXWRsa_hB-qz52bGwS_hk67EWuF9pRRKercgE0Ohgl4JgTg3xw",
+    "game_name": "Zeka",
+    "tag_line": "KＲ1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Gumayusi",
+    "team": "HLE",
+    "role": "BOT",
+    "league": "LCK",
+    "also": [
+      "구마유시"
+    ],
+    "ids": [
+      [
+        "HLE Gumayusi",
+        "0298"
+      ],
+      [
+        "구마유시",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "HLE Gumayusi",
+    "puuid": "7P3V2OnepMULlOEasjyPAHFRXZ-wi12vbfhlDmbvYFg-33RCS-2E9322rDioEbyedtAiBI1Z4S0C8g",
+    "game_name": "HLE Gumayusi",
+    "tag_line": "0298",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Delight",
+    "team": "HLE",
+    "role": "SUP",
+    "league": "LCK",
+    "also": [
+      "딜라이트"
+    ],
+    "ids": [
+      [
+        "Delight",
+        "KR1"
+      ],
+      [
+        "HLE Delight",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "HLE Delight",
+    "puuid": "mgMKtWdhV76iZd2EyFKHr2BgzIAZ2gYeKAQy50XnTEp7uVoM4zVqmfB-_xQACYpAQ_zp1VQjRnIK1g",
+    "game_name": "Delight",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Siwoo",
+    "team": "DK",
+    "role": "TOP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Siwoo",
+        "KR1"
+      ],
+      [
+        "DK Siwoo",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DK Siwoo",
+    "puuid": "ZCqSwc1bhggKHY35WcRkwIfi_jOV8NwyEmX4FRzsjktI4rAbJmRAzfei2FB1wlwVVm8EZSqRfGj5dA",
+    "game_name": "DK Siwoo",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Lucid",
+    "team": "DK",
+    "role": "JNG",
+    "league": "LCK",
+    "ids": [
+      [
+        "DK Lucid",
+        "KR1"
+      ],
+      [
+        "Lucid",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DK Lucid",
+    "puuid": "j30FtBD2O1SobWQKia_4wDU6akcKNsDuLtjkx81fQU9bfRT0iW-anZRX7Hl_Nj6ZapRGnhyNcbqXyA",
+    "game_name": "DK Lucid",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "ShowMaker",
+    "team": "DK",
+    "role": "MID",
+    "league": "LCK",
+    "also": [
+      "쇼메이커"
+    ],
+    "ids": [
+      [
+        "DK ShowMaker",
+        "KR1"
+      ],
+      [
+        "ShowMaker",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DK ShowMaker",
+    "puuid": "LhK-Y73myNeWzG7j5ih7TrN6-eyjU5_ohugjcFvD89mHrY7QIgrklI0fj35ko_2yXgVfzhA7xVj1dg",
+    "game_name": "DK ShowMaker",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Smash",
+    "team": "DK",
+    "role": "BOT",
+    "league": "LCK",
+    "ids": [
+      [
+        "DK Smash",
+        "KR7"
+      ],
+      [
+        "Smash",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DK Smash",
+    "puuid": "C50VObXftBmam4xFyoGW3_8YN1YHxAor_r2_YEmtPtJDU60bacuGHbKYQgEbWHjEO5AM1mNjUM43NQ",
+    "game_name": "DK Smash",
+    "tag_line": "KR7",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Career",
+    "team": "DK",
+    "role": "SUP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Career",
+        "KR1"
+      ],
+      [
+        "DK Career",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DK Career",
+    "puuid": "tMpbZOxXQ_U3MKmBar-L__IxLlfgxRUCumgbDTgzDPA2K5CN0ST4MSRMQqS7048FvxO3fLVXawkDfQ",
+    "game_name": "Career",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "PerfecT",
+    "team": "KT",
+    "role": "TOP",
+    "league": "LCK",
+    "ids": [
+      [
+        "PerfecT",
+        "132"
+      ],
+      [
+        "PerfecT",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "KT PerfecT",
+    "puuid": "KcQbf20xR0LjgwGq5jWnPXOtatauLJeTkX-uA0VEIDlNCl6x8y7Q19aMZm2cgq1GDP8Y7FTvjNmAkQ",
+    "game_name": "PerfecT",
+    "tag_line": "132",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Cuzz",
+    "team": "KT",
+    "role": "JNG",
+    "league": "LCK",
+    "ids": [
+      [
+        "Cuzz",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "KT Cuzz",
+    "puuid": "aq7jMxmz7cU3VvtiPcCjyVxSmF37w0xxJEN9CTyW8Q3bVPB41h0X5ukWrLvs13KFi1v10A1_YE8k6Q",
+    "game_name": "Cuzz",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Bdd",
+    "team": "KT",
+    "role": "MID",
+    "league": "LCK",
+    "also": [
+      "비디디"
+    ],
+    "ids": [
+      [
+        "Bdd",
+        "KR1"
+      ],
+      [
+        "비디디",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "KT Bdd",
+    "puuid": "I5JzQo69kqCKAfF-mjGr_iwTZVPoYgpDm3W6e8-x2i9Pd_DEBHQHD9qTvGxGS84fwgQ7pR-9f2yjXw",
+    "game_name": "bdd",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Jiwoo",
+    "team": "KT",
+    "role": "BOT",
+    "league": "LCK",
+    "ids": [
+      [
+        "Jiwoo",
+        "KR1"
+      ],
+      [
+        "KT Jiwoo",
+        "KR1"
+      ]
+    ],
+    "label": "KT Jiwoo",
+    "ok": false
+  },
+  {
+    "id": "FenRir",
+    "team": "KT",
+    "role": "BOT",
+    "league": "LCK",
+    "ids": [
+      [
+        "FenRir",
+        "KR1"
+      ],
+      [
+        "Fenrir",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "KT FenRir",
+    "puuid": "kqd-Kwk4ZEivMRVg2_X-DiAFpcR8owq76i7BNtpzGGwvTjARfCVLKmTpudcHCz3v7x2NZ5kb71JHZA",
+    "game_name": "Fenrir",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Effort",
+    "team": "KT",
+    "role": "SUP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Effort",
+        "KR1"
+      ],
+      [
+        "KT Effort",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "KT Effort",
+    "puuid": "BFyQMoJGqDAyY-CoRMLTq4L7RZZCzqLvxebiTgdIf1QmWiy1rgWjSWv67AP9Xok4ySAgYvhyQhWGvg",
+    "game_name": "Effort",
+    "tag_line": "4444",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Clear",
+    "team": "BFX",
+    "role": "TOP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Clear",
+        "KR1"
+      ],
+      [
+        "BFX Clear",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "BFX Clear",
+    "puuid": "d7lFKOHZTGG3lY7nnz1rjin-LzJ2ezloNUAmrh7JIDEanbe_mM325Goh6eXoxOsuvG1cMUlEYnlp5w",
+    "game_name": "clear",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Raptor",
+    "team": "BFX",
+    "role": "JNG",
+    "league": "LCK",
+    "ids": [
+      [
+        "Raptor",
+        "KR1"
+      ],
+      [
+        "BFX Raptor",
+        "KR1"
+      ]
+    ],
+    "label": "BFX Raptor",
+    "ok": false
+  },
+  {
+    "id": "VicLa",
+    "team": "BFX",
+    "role": "MID",
+    "league": "LCK",
+    "ids": [
+      [
+        "VicLa",
+        "KR1"
+      ],
+      [
+        "BFX VicLa",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "BFX VicLa",
+    "puuid": "9x1C9HITWgTuJBU6JyY8M0eyhnLuVy0bHUnQtXjOJogEY9FZQOVO6Dg-i9jngqFrgV3-ptrBLuSgTQ",
+    "game_name": "VicLa",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Taeyoon",
+    "team": "BFX",
+    "role": "BOT",
+    "league": "LCK",
+    "ids": [
+      [
+        "Taeyoon",
+        "KR1"
+      ],
+      [
+        "BFX Taeyoon",
+        "KR1"
+      ]
+    ],
+    "label": "BFX Taeyoon",
+    "ok": false
+  },
+  {
+    "id": "Kellin",
+    "team": "BFX",
+    "role": "SUP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Kellin",
+        "KR1"
+      ],
+      [
+        "BFX Kellin",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "BFX Kellin",
+    "puuid": "kOb1lUubaFNmIR1hTf9fwEt_XXrMcG3LE23LXFmlEe0ZTOj8f18jpg8yKVi_wSLWc9K1kSjTAPa5qQ",
+    "game_name": "Kellin",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Kingen",
+    "team": "NS",
+    "role": "TOP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Kingen",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "NS Kingen",
+    "puuid": "KFLYhjvrYdsyBe_xcgYBXkTIln9XS_ffy096twVC8xRqcMPnrEmHWX3pwIvyIvxHzc7T2dwJmuWHfw",
+    "game_name": "Kingen",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "Sponge",
+    "team": "NS",
+    "role": "JNG",
+    "league": "LCK",
+    "ids": [
+      [
+        "Sponge",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "NS Sponge",
+    "puuid": "P7ftCnARW018BIe6JXhf7__QYS10Jo5Ciar89yGlBE8aszthmrXhEtgkn8Bx9SmkUFC_-8FDcPEFcw",
+    "game_name": "Sponge",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Scout",
+    "team": "NS",
+    "role": "MID",
+    "league": "LCK",
+    "ids": [
+      [
+        "Scout",
+        "KR1"
+      ]
+    ],
+    "label": "NS Scout",
+    "ok": false
+  },
+  {
+    "id": "Lehends",
+    "team": "NS",
+    "role": "SUP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Lehends",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "NS Lehends",
+    "puuid": "leVGNR3sRBZZbzQkSiFhaQQ9mMHmW2r5NGLuhcvKeKesiOfYpbtaI6B4uJhl2YghDK7a-HLbqznOzA",
+    "game_name": "Lehends",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Rich",
+    "team": "DRX",
+    "role": "TOP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Rich",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DRX Rich",
+    "puuid": "m_vJkvOOB5EqJ9tpvO0tXj63VcsEILvsm5UCbTfzF1N643ysTrVf_qxPD3qvtX0y1Ws38KARH6HzpA",
+    "game_name": "Rich",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Vincenzo",
+    "team": "DRX",
+    "role": "JNG",
+    "league": "LCK",
+    "ids": [
+      [
+        "Vincenzo",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DRX Vincenzo",
+    "puuid": "VXjMnVWQNMILiaGhVejLivDHmBhjNANtJAbLwHhy2BY9gGDz1nZyg64aIg3eV2FmytGrwUD-gM0ALg",
+    "game_name": "VINCENZO",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Ucal",
+    "team": "DRX",
+    "role": "MID",
+    "league": "LCK",
+    "ids": [
+      [
+        "Ucal",
+        "KR1"
+      ],
+      [
+        "ucal",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DRX Ucal",
+    "puuid": "ombrLKpq_uhryKetSMRztDHmGL5yBqyIlpyzdeim_3WhoMAW2AkwDZsIWPT4do5HDJXEpEZj8lrv1g",
+    "game_name": "Ucal",
+    "tag_line": "KＲ1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Andil",
+    "team": "DRX",
+    "role": "SUP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Andil",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DRX Andil",
+    "puuid": "TmaD_hi9bgEq57FLssumyokH55Kd9eNFetlZLuSWweQ_AtfcZt0p1gJ2lb0fB8z4nxzgGecxBolM4g",
+    "game_name": "Andil",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Casting",
+    "team": "BRO",
+    "role": "TOP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Casting",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "BRO Casting",
+    "puuid": "yhFeF7pobdWEoyBZzVy-z5_FqagCyndo_oP1X5h-FL49wTwX3k9MSuYLpOOzM2KcFpTAnosHe2fs7A",
+    "game_name": "Casting",
+    "tag_line": "KR11",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
+  },
+  {
+    "id": "GIDEON",
+    "team": "BRO",
+    "role": "JNG",
+    "league": "LCK",
+    "ids": [
+      [
+        "GIDEON",
+        "KR1"
+      ],
+      [
+        "Gideon",
+        "KR1"
+      ]
+    ],
+    "label": "BRO GIDEON",
+    "ok": false
+  },
+  {
+    "id": "Fisher",
+    "team": "BRO",
+    "role": "MID",
+    "league": "LCK",
+    "ids": [
+      [
+        "Fisher",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "BRO Fisher",
+    "puuid": "Jjd0akO_ZfvalfihNWkIrcikv2Eh5EmpNcV2ZaHF9I2iK28KpAXmcsWXJYBeSpZTFG-eQ8Cn4RDpzg",
+    "game_name": "Fisher",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Teddy",
+    "team": "BRO",
+    "role": "BOT",
+    "league": "LCK",
+    "ids": [
+      [
+        "Teddy",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "BRO Teddy",
+    "puuid": "Fs5b8SnKreQY5HEW6t23otTGsecvK_t26ZBLwGCpzxcA0WuEKLPjVk3T8xtf3vC6sl5B5mb1PaNQjg",
+    "game_name": "teddy",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Namgung",
+    "team": "BRO",
+    "role": "SUP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Namgung",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "BRO Namgung",
+    "puuid": "v08p-yLvDuV-yYlBOmwlHhkD-APJKMw0g4OPhrXsg-4rQ-9lOSxS94Sv6AWYRMGDXshcFDb0syT3BQ",
+    "game_name": "Namgung",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "DuDu",
+    "team": "DNF",
+    "role": "TOP",
+    "league": "LCK",
+    "ids": [
+      [
+        "DuDu",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DNF DuDu",
+    "puuid": "JDVHvo8csJtUpnxyHNiTDsdG0Z1nZGf70a7B3KhUr7pGlhWMZiYMrvY6WnpwI-tfE2d9zE0jCHkR1g",
+    "game_name": "DuDu",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Pyosik",
+    "team": "DNF",
+    "role": "JNG",
+    "league": "LCK",
+    "ids": [
+      [
+        "Pyosik",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DNF Pyosik",
+    "puuid": "ZZTUOIn9upHt5zOTbfj5wCXJiH_XsbOfxiaIfDwgeVtfos0YE3jtloWqd1_-ItLsBluMqWmccyyx5g",
+    "game_name": "Pyosik",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Clozer",
+    "team": "DNF",
+    "role": "MID",
+    "league": "LCK",
+    "ids": [
+      [
+        "Clozer",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DNF Clozer",
+    "puuid": "70Y_XKvi8JDXBZutN0AjPwtwQ4ieglhczUTzmemehXyiO6Sy3s0pwLuQtIR2M_gfVOD4dkGjsB5Q0Q",
+    "game_name": "Clozer",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "deokdam",
+    "team": "DNF",
+    "role": "BOT",
+    "league": "LCK",
+    "ids": [
+      [
+        "deokdam",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "DNF deokdam",
+    "puuid": "4GbE44CcLnhn2z2JU7FIJRyycV-hfd8_VB6_Niqyd7wMjSYgVsnUA1Ocvcu-kFk-XQg68zbUf-SPfQ",
+    "game_name": "deokdam",
+    "tag_line": "KR1",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "riot"
+  },
+  {
+    "id": "Peter",
+    "team": "DNF",
+    "role": "SUP",
+    "league": "LCK",
+    "ids": [
+      [
+        "Peter",
+        "KR1"
+      ]
+    ],
+    "label": "DNF Peter",
+    "ok": false
+  },
+  {
+    "id": "BrokenBlade",
+    "team": "G2",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "BrokenBlade",
+        "EUW"
+      ],
+      [
+        "BrokenBlade",
+        "G2"
+      ]
+    ],
+    "label": "G2 BrokenBlade",
+    "ok": false
+  },
+  {
+    "id": "SkewMond",
+    "team": "G2",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "SkewMond",
+        "EUW"
+      ],
+      [
+        "SkewMond",
+        "G2"
+      ]
+    ],
+    "ok": true,
+    "label": "G2 SkewMond",
+    "puuid": "pbVoy9fR4qiu3Wz7co6lQOclVy-hpN-1-VlEXsTur65nsSs-0GQQFkyXBQgKpQniXAGp0R0StshvaQ",
+    "game_name": "SkewMond",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Caps",
+    "team": "G2",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "Caps",
+        "EUW"
+      ],
+      [
+        "Caps",
+        "G2"
+      ],
+      [
+        "Caps",
+        "2112"
+      ]
+    ],
+    "ok": true,
+    "label": "G2 Caps",
+    "puuid": "STn6cJ04I59TY2rPH6wpugCYt0zFqZk7DL8jRKlcEwj-XxTbi4eNTzP9p-w1gBWSQgRUG1elsM2HNA",
+    "game_name": "Cäps",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Hans Sama",
+    "team": "G2",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "Hans Sama",
+        "EUW"
+      ],
+      [
+        "Hans Sama",
+        "G2"
+      ]
+    ],
+    "ok": true,
+    "label": "G2 Hans Sama",
+    "puuid": "hv9N80gDEPWCddGYtOjDKOUuHANqXzROXzSenWCFkHTiujLtLUY_MVf3gW2GEeCd6hDEyL07ybcZ1Q",
+    "game_name": " Hâns Sama",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Labrov",
+    "team": "G2",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Labrov",
+        "EUW"
+      ],
+      [
+        "Labrov",
+        "G2"
+      ]
+    ],
+    "label": "G2 Labrov",
+    "ok": false
+  },
+  {
+    "id": "Canna",
+    "team": "KC",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Canna",
+        "EUW"
+      ],
+      [
+        "Canna",
+        "KR1"
+      ],
+      [
+        "Canna",
+        "KC"
+      ]
+    ],
+    "ok": true,
+    "label": "KC Canna",
+    "puuid": "zt4dWVI4C0zsOxX8l83Delqe5-D4F0lrUI3WAQIybuza_PqgzYGOOis0ZppeR_h0DSqNQlYmVbw_LQ",
+    "game_name": "Cannà",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Yike",
+    "team": "KC",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "Yike",
+        "EUW"
+      ],
+      [
+        "Yike",
+        "KC"
+      ]
+    ],
+    "ok": true,
+    "label": "KC Yike",
+    "puuid": "yx_2HiIQvZC4wbMiO2oqljRthzvtqJBoQgWrXfJGijQ5E-vrHyq_KnKAzsSPnjE8ytsCadxev-_T1A",
+    "game_name": "Yike",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "kyeahoo",
+    "team": "KC",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "kyeahoo",
+        "EUW"
+      ],
+      [
+        "kyeahoo",
+        "KR1"
+      ],
+      [
+        "kyeahoo",
+        "KC"
+      ]
+    ],
+    "label": "KC kyeahoo",
+    "ok": false
+  },
+  {
+    "id": "Caliste",
+    "team": "KC",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "Caliste",
+        "EUW"
+      ],
+      [
+        "Caliste",
+        "KC"
+      ]
+    ],
+    "label": "KC Caliste",
+    "ok": false
+  },
+  {
+    "id": "Busio",
+    "team": "KC",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Busio",
+        "EUW"
+      ],
+      [
+        "Busio",
+        "KC"
+      ]
+    ],
+    "ok": true,
+    "label": "KC Busio",
+    "puuid": "TIZ5JrWLEBqPNf_1fZndluHOUhPnOESwXRHObhEd-OzCNPTpKhsRr2vk42X5R_IB96uWWiy-RNZKpg",
+    "game_name": "Busio",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Soboro",
+    "team": "FNC",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Soboro",
+        "EUW"
+      ],
+      [
+        "Soboro",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "FNC Soboro",
+    "puuid": "0tK09V3CkrL1mfFA0NSv18OIyOBSrd42DkCpo4iSs2IVXlG3wlJOooRJG6VaXMQtko-N7mCHwTTrdw",
+    "game_name": "soboro",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Razork",
+    "team": "FNC",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "Razork",
+        "EUW"
+      ],
+      [
+        "Razork",
+        "FNC"
+      ]
+    ],
+    "ok": true,
+    "label": "FNC Razork",
+    "puuid": "eaJoBfFDToCXshcaKPRCpJsn1zKGdgVs_PGQHM6tqohdv88hrKywQ7nBVOWql9jpYtDI-HhcJbJetQ",
+    "game_name": "RazÖrk",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Vladi",
+    "team": "FNC",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "Vladi",
+        "EUW"
+      ],
+      [
+        "Vladi",
+        "FNC"
+      ]
+    ],
+    "ok": true,
+    "label": "FNC Vladi",
+    "puuid": "O4diWk51wWJyz2FzW5npEM5iByJLSusWzcHVRyZ1giXiB-o_ggHXWIFmltVstmy1MzZV5061DJ5-Sw",
+    "game_name": "vlâdi",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Upset",
+    "team": "FNC",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "Upset",
+        "EUW"
+      ],
+      [
+        "Upset",
+        "FNC"
+      ]
+    ],
+    "ok": true,
+    "label": "FNC Upset",
+    "puuid": "jiUPKZhE4vWAFj9z07poN8giT6ixajrk11AR3U7EMyoX16P-7_1yxPqZsQgVw5Q9oATDHT4B7RMxBA",
+    "game_name": "Upsêt",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Lospa",
+    "team": "FNC",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Lospa",
+        "EUW"
+      ],
+      [
+        "Lospa",
+        "KR1"
+      ]
+    ],
+    "label": "FNC Lospa",
+    "ok": false
+  },
+  {
+    "id": "Oscarinin",
+    "team": "GX",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Oscarinin",
+        "EUW"
+      ]
+    ],
+    "label": "GX Oscarinin",
+    "ok": false
+  },
+  {
+    "id": "Isma",
+    "team": "GX",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "Isma",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "GX Isma",
+    "puuid": "jnM9KkH0i6YevUMfjxQswpUsU0ctGF-uzhVXLxh-LVyKvmOGCTBG_ww9NpfT4p0M-WdDXhkO5znAJQ",
+    "game_name": "Išma",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Jackies",
+    "team": "GX",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "Jackies",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "GX Jackies",
+    "puuid": "8cXr3hjmvvVFTIvuM1CtGzF8zovjhpD8MU_lf1cxz9tXbEr66V_OCW6nu8oSJiKN3aLze5RMMa7EAg",
+    "game_name": "Jackies",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Flakked",
+    "team": "GX",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "Flakked",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "GX Flakked",
+    "puuid": "bPiTMW1R7hSpisYbswByFp7KN9XwUZbi8QLap0avf2jjcmAxgOASrAuB9GOQckPOdwxDCDMuCvdopw",
+    "game_name": "Flakked",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Jun",
+    "team": "GX",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Jun",
+        "EUW"
+      ],
+      [
+        "Jun",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "GX Jun",
+    "puuid": "1MtupJVr1W8YbeoxhmhrWO69t2NeHE6P5jYGI0Hk7oVaPAg7yU8gTrBnAsfO5sT_A2_2jmNbNDkp7w",
+    "game_name": "Jùñ",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Myrwn",
+    "team": "MKOI",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Myrwn",
+        "EUW"
+      ]
+    ],
+    "label": "MKOI Myrwn",
+    "ok": false
+  },
+  {
+    "id": "Elyoya",
+    "team": "MKOI",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "Elyoya",
+        "EUW"
+      ]
+    ],
+    "label": "MKOI Elyoya",
+    "ok": false
+  },
+  {
+    "id": "Jojopyun",
+    "team": "MKOI",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "Jojopyun",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "MKOI Jojopyun",
+    "puuid": "AUYQVMApUCM-9to1QM-mO9J2wMxTOpcmcHcryPcgDPgrtJylQ-c2bqi_M9crE28txhQ-H6-7gSjuFQ",
+    "game_name": "jojopyun",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Supa",
+    "team": "MKOI",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "Supa",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "MKOI Supa",
+    "puuid": "JMCME7mlAPxSiePI_6-zRRMdpRfLO6UxIAcAh7_YUiMe5dumYTeJrAs5WMq5xHe7HTi0D2WC4Kp7Rw",
+    "game_name": "Supà",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Alvaro",
+    "team": "MKOI",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Alvaro",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "MKOI Alvaro",
+    "puuid": "UdWAf8MzBVJcMP3dhsLnGVEvvybUrM91LtTPywhOja6kyn2-6Vm9ds2S1taMXVWLgQgJoe_JvYk6eA",
+    "game_name": "Älvarö",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Maynter",
+    "team": "NAVI",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Maynter",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "NAVI Maynter",
+    "puuid": "q6L0wzJ0gjYDZGLX2bPxRGZE_AZ1Iq8RnPcGQhE1QV7cQ2GyasLD5vHbCAtROzoOMjBhk7JIACfW7Q",
+    "game_name": "Maynter",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Rhilech",
+    "team": "NAVI",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "Rhilech",
+        "EUW"
+      ]
+    ],
+    "label": "NAVI Rhilech",
+    "ok": false
+  },
+  {
+    "id": "Poby",
+    "team": "NAVI",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "Poby",
+        "EUW"
+      ],
+      [
+        "Poby",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "NAVI Poby",
+    "puuid": "0pcq2PW3p8gxuP7zyq1CTCbaZaNqkws4kr1MNghBTRo6YmmucqNNJh8g7ElyN7kWalZkXMRp2Yzcbg",
+    "game_name": "Poby",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "SamD",
+    "team": "NAVI",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "SamD",
+        "EUW"
+      ],
+      [
+        "SamD",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "NAVI SamD",
+    "puuid": "dwY8z1zLxozsAcmwOIASZ_tYJZMmgDjCYqySzPIpkmoiPgj7BKiYpEkjA81t3F_-YvTY0uvHyA3ueA",
+    "game_name": "SamD",
+    "tag_line": "KR1",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Parus",
+    "team": "NAVI",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Parus",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "NAVI Parus",
+    "puuid": "quW0Z95gAhZZuiB1b1URGKc9D6Db41Od-AwmhETwAnFVymojI8BOUmgcdRTzrMAMadEsYsp0A5saVQ",
+    "game_name": "Pârus",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Rooster",
+    "team": "SHF",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Rooster",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "SHF Rooster",
+    "puuid": "NQvP2nR34bpIah1G4d0TvhjpKnBSeUlWYUpwdNRBPnaVq16kD4J06c622IaYNfyj0yY8XahPjM8Kxw",
+    "game_name": "Róoster",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Boukada",
+    "team": "SHF",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "Boukada",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "SHF Boukada",
+    "puuid": "GrAzOS4ydNhVDRkFOHXwsXCRQhylFHge0JQEY1O-xSyazaF7IQnXrDnTdOlAvQSBwuA2w0t3XP9ZYw",
+    "game_name": "Boukada",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "nuc",
+    "team": "SHF",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "nuc",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "SHF nuc",
+    "puuid": "L7nB6kZ-v2d0Ol9ZkUE5n6ebEtGdjtJvYCWLJXoiGb21pJJbZyk_7oOA6HYLK1TMNgORKembX1JN8w",
+    "game_name": "Nuc",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Paduck",
+    "team": "SHF",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "Paduck",
+        "EUW"
+      ],
+      [
+        "Paduck",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "SHF Paduck",
+    "puuid": "yH6IgORUZSEBWT-6jyrxl2qOltn0F5f8us-rnqI7f4D3yaXC65ehZ2KGhwGlNDP4ip3x16-ThT4TAA",
+    "game_name": "Paduck",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Stend",
+    "team": "SHF",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Stend",
+        "EUW"
+      ]
+    ],
+    "label": "SHF Stend",
+    "ok": false
+  },
+  {
+    "id": "Wunder",
+    "team": "SK",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Wunder",
+        "EUW"
+      ]
+    ],
+    "label": "SK Wunder",
+    "ok": false
+  },
+  {
+    "id": "Skeanz",
+    "team": "SK",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "Skeanz",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "SK Skeanz",
+    "puuid": "JfXIrhW8H_aKg8Hs7nKIBIkzmkZ7yd79pbePlXfRbR02OrR8XhCoNCfnX8hELqdgxUmLUr39j3M4hA",
+    "game_name": "Skeanz",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "SlowQ",
+    "team": "SK",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "SlowQ",
+        "EUW"
+      ],
+      [
+        "SlowQ",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "SK SlowQ",
+    "puuid": "GSiqbYB2AMNo8KFoXujmc6TrBAS229i2sinqROUcnZJjHqpCgfsw_5tuamEeMXy9I2gJtRgkvNl4GA",
+    "game_name": "SlowQ",
+    "tag_line": "KR1",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Jopa",
+    "team": "SK",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "Jopa",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "SK Jopa",
+    "puuid": "DQmGNHPTDvgYThhD4EOwO4U2ALHfxw6YmFPgTPnnvhZX-2L_QX3j9F9phRIjCzricDZqvZNR1Zb40A",
+    "game_name": "jopa",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Mikyx",
+    "team": "SK",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Mikyx",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "SK Mikyx",
+    "puuid": "BIpULoOQuz9vDKFyBGKov0xn9gmEJQUjY5Fe15y0Fn9WLZJ1RF_w3zp8AjN21TWGd1qWbAce-3hLCA",
+    "game_name": "Mîkyx",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Tracyn",
+    "team": "TH",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Tracyn",
+        "EUW"
+      ]
+    ],
+    "label": "TH Tracyn",
+    "ok": false
+  },
+  {
+    "id": "Daglas",
+    "team": "TH",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "Daglas",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "TH Daglas",
+    "puuid": "_2ftIen3p0wjmTVlvWGVvAFnILUG4EWa0RHjerN7wxEg0DnO0fWcv4NeQfbkDV5tcf1x4YaSDt93PA",
+    "game_name": "Dåglas",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Serin",
+    "team": "TH",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "Serin",
+        "EUW"
+      ]
+    ],
+    "label": "TH Serin",
+    "ok": false
+  },
+  {
+    "id": "Hype",
+    "team": "TH",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "Hype",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "TH Hype",
+    "puuid": "dHL9XZ-w_fl-Mp3BX3gAirD_DGchppGeTycWcHHrNdaEqDpCxRnPK_LvZ7YihwD2SafEkcKqY1Onkw",
+    "game_name": "HÿpE",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Way",
+    "team": "TH",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Way",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "TH Way",
+    "puuid": "L_vkX0gfHQHGgMlKQVehyPKpcJe2cveItlgxzNx649jztBa7zigsODmdzfPJ-sRkjwaLMXczQU5-DQ",
+    "game_name": "wáy",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Naak Nako",
+    "team": "VIT",
+    "role": "TOP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Naak Nako",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "VIT Naak Nako",
+    "puuid": "h8YA9rZ4edVEmHeR2W9duFu6SJhgEH5HfC9oUIy10ELKuYnSi5IQ01MskCs1kHdEXZOB2R_aMqeaEw",
+    "game_name": "Naak Nako",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Lyncas",
+    "team": "VIT",
+    "role": "JNG",
+    "league": "LEC",
+    "ids": [
+      [
+        "Lyncas",
+        "EUW"
+      ]
+    ],
+    "label": "VIT Lyncas",
+    "ok": false
+  },
+  {
+    "id": "FIESTA",
+    "team": "VIT",
+    "role": "MID",
+    "league": "LEC",
+    "ids": [
+      [
+        "FIESTA",
+        "EUW"
+      ],
+      [
+        "FIESTA",
+        "KR1"
+      ]
+    ],
+    "ok": true,
+    "label": "VIT FIESTA",
+    "puuid": "n4Q0CEskfu_DI-1Ok9V9F9OuWgaH3CScwPR3gl5c8MHFvD9WZNVam0xNNPHhwcDiTuvqN60TC5_OUg",
+    "game_name": "ﬁesta",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Carzzy",
+    "team": "VIT",
+    "role": "BOT",
+    "league": "LEC",
+    "ids": [
+      [
+        "Carzzy",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "VIT Carzzy",
+    "puuid": "Vb6BCcWY8c2cjy9IYVDhXnaB8aiNunFFPu9H2E8es83GER9k6eaIz83JoiZ3bYeEv-kcW7XUed50MQ",
+    "game_name": "Cärzzy",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  },
+  {
+    "id": "Fleshy",
+    "team": "VIT",
+    "role": "SUP",
+    "league": "LEC",
+    "ids": [
+      [
+        "Fleshy",
+        "EUW"
+      ]
+    ],
+    "ok": true,
+    "label": "VIT Fleshy",
+    "puuid": "flyagJpGeugrQTW1AGotLTEZ9dOc3Iey9GA77Y4gzyU6V7MpTpJpchjha1uteu1nQ32WaUAbngknfw",
+    "game_name": "Fleshy",
+    "tag_line": "EUW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "riot"
+  }
+]
