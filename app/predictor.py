@@ -122,7 +122,7 @@ class Predictor:
         """
         from collections import Counter
 
-        from app.shop_econ import GOLD_DRIFT, combine_cost, is_blocked
+        from app.shop_econ import GOLD_DRIFT, SAVE_ITEM, combine_cost, is_blocked
 
         first_probs, _ = self._probs(row)
         inventory = [int(i) for i in (row.get("inventory") or []) if i]
@@ -161,6 +161,8 @@ class Predictor:
         top = []
         for idx in torch.argsort(first_probs, descending=True).tolist():
             item_id = self.label_ids[idx]
+            if item_id == SAVE_ITEM:
+                continue
             if buyable(item_id, inventory, start_budget) is None:
                 continue
             top.append(self._item_payload(item_id, float(first_probs[idx]), inventory))
@@ -170,6 +172,7 @@ class Predictor:
         # Basket: one forward pass, greedy down the ranked list under the
         # running constraints (budget, slots, purchase blocks, plan).
         basket = []
+        model_save_prob = 0.0
         sim_inv = list(inventory)
         budget = start_budget
         for idx in torch.argsort(first_probs, descending=True).tolist():
@@ -177,6 +180,11 @@ class Predictor:
             if prob < self.threshold or len(basket) >= max_items:
                 break
             item_id = self.label_ids[idx]
+            if item_id == SAVE_ITEM:
+                # the model says stop buying here; only a primary save counts
+                if not basket:
+                    model_save_prob = prob
+                break
             if item_id not in allowed and prob < 0.95:
                 continue
             buy = buyable(item_id, sim_inv, budget)
@@ -198,18 +206,18 @@ class Predictor:
                     entry["target"] = {"item_id": fid, "name": self.dragon.item_name(fid), "prob": round(p, 3)}
                     break
 
-        # Save option: only when nothing affordable clears the bar but the model
-        # clearly wants a final item that is out of gold reach.
+        # Save option: the model predicting the SAVE action outright, or nothing
+        # affordable clearing the bar while a wanted final is out of gold reach.
         save = None
-        if not basket and finals and finals[0][0] >= 0.4:
+        if not basket and finals:
             p, fid, _comps = finals[0]
             cost = combine_cost(fid, Counter(inventory), self.dragon)
-            if cost > gold:
+            if model_save_prob >= self.threshold or (p >= 0.4 and cost > gold):
                 save = {
                     "item_id": fid,
                     "name": self.dragon.item_name(fid),
-                    "prob": round(p, 3),
-                    "need": int(cost - gold),
+                    "prob": round(max(p, model_save_prob), 3),
+                    "need": max(0, int(cost - gold)),
                 }
 
         return {"top": top, "basket": basket, "save": save, "threshold": self.threshold}

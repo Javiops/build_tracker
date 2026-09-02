@@ -656,7 +656,10 @@ def main() -> None:
             idx = label_index.get(int(item_id or 0))
             if idx is not None:
                 counts[idx] += 1
-    pos_weight = ((len(train) - counts) / counts.clamp(min=1.0)).clamp(max=40.0)
+    # Low cap: trustworthy confidence over rare-item recall (owner's framing —
+    # inflated rare-item probabilities "boost great matchup choices but also
+    # highlight mistakes").
+    pos_weight = ((len(train) - counts) / counts.clamp(min=1.0)).clamp(max=8.0)
 
     for row in train + test:
         for player in row.get("others") or []:

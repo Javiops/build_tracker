@@ -48,11 +48,19 @@ def _fill_match(client: RiotClient, dragon: DataDragon, match_id: str) -> int:
     return shoppers
 
 
-def ingest_backfill(progress: Progress | None = None) -> dict:
+def all_game_ids() -> list[str]:
+    with db() as conn:
+        rows = conn.execute("SELECT match_id FROM games ORDER BY game_creation DESC").fetchall()
+        return [row["match_id"] for row in rows]
+
+
+def ingest_backfill(progress: Progress | None = None, refresh: bool = False) -> dict:
+    """refresh=True re-fetches EVERY stored game so reconstruction changes
+    (e.g. save events) apply to the whole corpus, not just new ingests."""
     init_db()
     emit = progress or (lambda _event: None)
-    todo = games_missing_full_lobby()
-    emit({"step": "list", "message": f"{len(todo)} games need a full 10-player timeline"})
+    todo = all_game_ids() if refresh else games_missing_full_lobby()
+    emit({"step": "list", "message": f"{len(todo)} games to re-reconstruct (refresh={refresh})"})
     client = RiotClient()
     dragon = DataDragon()
     filled = 0

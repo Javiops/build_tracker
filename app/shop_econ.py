@@ -10,6 +10,9 @@ PINK = {2055, 772043}
 # Timeline frames snapshot gold up to 60s BEFORE a shop visit, so the honest
 # budget is that pre-visit gold plus what a player can earn before buying.
 GOLD_DRIFT = 500
+# Sentinel label for the save/no-buy action: a Challenger at the fountain with
+# meaningful gold who bought nothing. First-class action in the model's output.
+SAVE_ITEM = 999999
 
 
 def payload_ids(items: list | None) -> list[int]:

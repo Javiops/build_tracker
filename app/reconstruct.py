@@ -11,6 +11,13 @@ from app.shop_econ import arrival_from_parts
 SHOP_ACTIONS = {"ITEM_PURCHASED", "ITEM_SOLD", "ITEM_UNDO"}
 ITEM_EVENTS = SHOP_ACTIONS | {"ITEM_DESTROYED"}
 
+# A death is an observed fountain visit: if the player respawns holding real
+# gold and buys nothing within this window, that is a deliberate save decision
+# — the action the purchase-only dataset can never show otherwise.
+SAVE_WINDOW_MS = 90_000
+SAVE_MIN_GOLD = 400
+SAVE_ENDGAME_MS = 120_000
+
 # Match-v5 never PURCHASES the support gold line. It is granted at start, then
 # only ITEM_DESTROYED fires as it upgrades: Atlas → Compass → Bounty → finished.
 SUPPORT_ATLAS = 3865
@@ -81,6 +88,8 @@ def reconstruct_game(match: dict, timeline: dict, dragon: DataDragon) -> tuple[d
     last_frames: dict[int, dict] = {}
     events: list[dict] = []
     open_visits: dict[int, dict] = {}
+    purchases_by_pid: dict[int, list[int]] = {}
+    death_snaps: list[dict] = []
 
     def close_visit(pid: int) -> None:
         ov = open_visits.pop(pid, None)
@@ -202,6 +211,9 @@ def reconstruct_game(match: dict, timeline: dict, dragon: DataDragon) -> tuple[d
                     batch.append(nxt)
                     i += 1
                 if owner:
+                    for entry in batch:
+                        if entry.get("type") == "ITEM_PURCHASED":
+                            purchases_by_pid.setdefault(owner, []).append(ts)
                     handle_item_batch(owner, ts, batch)
                 i += 1
                 continue
@@ -216,6 +228,17 @@ def reconstruct_game(match: dict, timeline: dict, dragon: DataDragon) -> tuple[d
                 for aid in event.get("assistingParticipantIds") or []:
                     if aid in kda:
                         kda[aid]["assists"] += 1
+                if victim in kda:
+                    death_snaps.append(
+                        {
+                            "pid": victim,
+                            "ts": ts,
+                            "inventories": {k: list(v) for k, v in inventories.items()},
+                            "frames": dict(last_frames),
+                            "kda": {k: dict(v) for k, v in kda.items()},
+                            "objectives": deepcopy(objectives),
+                        }
+                    )
 
             elif etype == "BUILDING_KILL":
                 team = event.get("teamId")
@@ -249,6 +272,53 @@ def reconstruct_game(match: dict, timeline: dict, dragon: DataDragon) -> tuple[d
 
     for pid in list(open_visits):
         close_visit(pid)
+
+    game_end_ms = (info.get("gameDuration") or 0) * 1000
+    for snap in death_snaps:
+        pid = snap["pid"]
+        ts = snap["ts"]
+        if ts + SAVE_WINDOW_MS > game_end_ms - SAVE_ENDGAME_MS:
+            continue
+        if any(ts < p <= ts + SAVE_WINDOW_MS for p in purchases_by_pid.get(pid, [])):
+            continue
+        stats = snap["frames"].get(pid) or {}
+        gold = int(stats.get("currentGold") or 0)
+        if gold < SAVE_MIN_GOLD:
+            continue
+        owner = by_pid[pid]
+        inv_payload = _items_payload(snap["inventories"].get(pid) or [], dragon)
+        end_kda = snap["kda"][pid]
+        events.append(
+            {
+                "type": "shop",
+                "is_save": True,
+                "ts": ts + 15_000,
+                "ts_end": ts + 15_000,
+                "puuid": owner["puuid"],
+                "participant_id": pid,
+                "champion_name": owner["champion_name"],
+                "champion_id": owner["champion_id"],
+                "team_id": owner["team_id"],
+                "team_position": owner["team_position"],
+                "riot_id": owner["riot_id"],
+                "gold": gold,
+                "gold_left": gold,
+                "level": stats.get("level"),
+                "cs": (stats.get("minionsKilled") or 0) + (stats.get("jungleMinionsKilled") or 0),
+                "kills": end_kda["kills"],
+                "deaths": end_kda["deaths"],
+                "assists": end_kda["assists"],
+                "inventory_before": inv_payload,
+                "inventory_after": inv_payload,
+                "bought": [],
+                "consumed": [],
+                "board": _board_snapshot(
+                    participants, snap["inventories"], snap["frames"], snap["kda"], dragon, pid
+                ),
+                "score": snap["objectives"],
+            }
+        )
+
     events.sort(key=lambda e: (e.get("ts") or 0, e.get("ts_end") or 0))
     for idx, event in enumerate(events, start=1):
         event["event_index"] = idx

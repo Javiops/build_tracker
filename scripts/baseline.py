@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 from app.config import DATA_DIR
 from app.db import db
 from app.ddragon import default_dragon
-from app.shop_econ import GOLD_DRIFT, decision_kind, inventory_state, leftover_gold
+from app.shop_econ import GOLD_DRIFT, SAVE_ITEM, decision_kind, inventory_state, leftover_gold
 
 SEED = 16
 TRAIN_FRAC = 0.8
@@ -78,11 +78,15 @@ def _others(event: dict) -> list[dict]:
 
 
 def _example(event: dict, dragon) -> dict | None:
+    is_save = bool(event.get("is_save"))
     bought = _item_ids(event.get("bought") or [])
-    label = _label(bought, dragon)
-    if not label:
-        return None
-    label_id, label_name, label_completed = label
+    if is_save:
+        label_id, label_name, label_completed = SAVE_ITEM, "SAVE", False
+    else:
+        label = _label(bought, dragon)
+        if not label:
+            return None
+        label_id, label_name, label_completed = label
     # Pre-visit frame gold: snapshotted BEFORE the buys, so it cannot leak the
     # label. It understates arrival by up to ~60s of income, hence GOLD_DRIFT
     # in the affordability features.
@@ -119,10 +123,12 @@ def _example(event: dict, dragon) -> dict | None:
         "cheapest_complete": state["cheapest_complete"],
         "gold_after_complete": state["gold_after_complete"],
         "n_inventory": state["n_inventory"],
-        "decision": decision_kind(bought, inventory, dragon),
+        "decision": "save" if is_save else decision_kind(bought, inventory, dragon),
         "others": _others(event),
         "label_id": label_id,
-        "label_ids": [
+        "label_ids": [SAVE_ITEM]
+        if is_save
+        else [
             item_id
             for item_id in dict.fromkeys(bought)
             if not dragon.classify(item_id).get("skip")

@@ -204,3 +204,49 @@ assert ("shop", "Locke") in kinds, kinds
 assert ("shop", "Ahri") in kinds, kinds
 assert all(e["type"] == "shop" for e in events), kinds
 print("ok narrator", kinds)
+
+# Save events: death at fountain with gold and no purchase within 90s emits a
+# save visit; a death followed by a purchase does not; broke deaths do not.
+save_timeline = {
+    "info": {
+        "frames": [
+            {
+                "timestamp": 60000,
+                "events": [
+                    {"type": "ITEM_PURCHASED", "participantId": 8, "itemId": 1056, "timestamp": 4000},
+                ],
+                "participantFrames": {
+                    "8": {"participantId": 8, "currentGold": 900, "level": 6, "minionsKilled": 40},
+                    "1": {"participantId": 1, "currentGold": 100, "level": 6, "minionsKilled": 38},
+                },
+            },
+            {
+                "timestamp": 300000,
+                "events": [
+                    # rich death, no follow-up buy -> save visit
+                    {"type": "CHAMPION_KILL", "killerId": 1, "victimId": 8, "timestamp": 240000},
+                    # poor death -> no save visit
+                    {"type": "CHAMPION_KILL", "killerId": 8, "victimId": 1, "timestamp": 250000},
+                ],
+                "participantFrames": {},
+            },
+            {
+                "timestamp": 700000,
+                "events": [
+                    # death followed by a purchase inside the window -> no save
+                    {"type": "CHAMPION_KILL", "killerId": 1, "victimId": 8, "timestamp": 600000},
+                    {"type": "ITEM_PURCHASED", "participantId": 8, "itemId": 1001, "timestamp": 650000},
+                ],
+                "participantFrames": {},
+            },
+        ]
+    }
+}
+game, events = reconstruct_game(match, save_timeline, dragon)
+saves = [e for e in events if e.get("is_save")]
+assert len(saves) == 1, [(e.get("is_save"), e.get("ts"), e.get("champion_name")) for e in events]
+save = saves[0]
+assert save["champion_name"] == "Locke" and save["gold"] == 900 and save["ts"] == 255000, save
+assert save["bought"] == [] and save["inventory_before"] == save["inventory_after"]
+assert 1056 in [i["item_id"] for i in save["inventory_before"]]
+print("ok save visit: rich fountain no-buy emitted, poor/buying deaths skipped")

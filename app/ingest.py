@@ -165,6 +165,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Re-fetch timelines so every stored game has all 10 players' shops",
     )
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="With --backfill: re-fetch ALL stored games so reconstruction changes apply everywhere",
+    )
     args = parser.parse_args()
 
     from app.config import DATA_DIR
@@ -190,7 +195,7 @@ if __name__ == "__main__":
     if args.backfill:
         from app.backfill import ingest_backfill
 
-        ingest_backfill(progress=log)
+        ingest_backfill(progress=log, refresh=args.refresh)
     elif args.pros:
         from app.pros import ingest_pros
 
