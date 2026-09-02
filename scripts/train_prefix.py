@@ -38,9 +38,9 @@ USE_EXTRAS = os.environ.get("PREFIX_EXTRAS", "1") != "0"
 USE_HISTORY = os.environ.get("PREFIX_HISTORY") == "1"
 HIST_LEN = 12
 SEED = 16
-QUERY_DIM = 22
+QUERY_DIM = 26
 BASKET_THRESHOLD = 0.8  # swept 0.5-0.8 on the honest model: best F1/exact-set
-CACHE_VERSION = "v3"  # v3: purchase blocks (unique legendaries, boots) in the mask
+CACHE_VERSION = "v4"  # v4: lane-opponent class features (ranged/AD/AP/defense)
 ROLES = {"TOP": 1, "JUNGLE": 2, "MIDDLE": 3, "BOTTOM": 4, "UTILITY": 5}
 # side ids: 0 pad, 1 ally, 2 enemy, 3 self, 4 lane opponent, 5 history token
 SIDE_ALLY, SIDE_ENEMY, SIDE_SELF, SIDE_LANE_OPP, SIDE_HISTORY = 1, 2, 3, 4, 5
@@ -281,6 +281,7 @@ class ShopDataset:
         opp_pos = -1
         opp_level = None
         opp_gold = None
+        opp_cid = 0
         enemy_items: list[int] = []
         ally_gold = float(row.get("total_gold") or 0)
         enemy_gold = 0.0
@@ -303,6 +304,7 @@ class ShopDataset:
                 opp_pos = pos
                 opp_level = player.get("level")
                 opp_gold = gold
+                opp_cid = int(player.get("champion_id") or 0)
         ap_share = magic / (attack + magic) if attack + magic > 0 else 0.5
         level_diff = 0.0
         if opp_level is not None and row.get("level") is not None:
@@ -310,7 +312,14 @@ class ShopDataset:
         profile = damage_profile(enemy_items, self.dragon)
         dmg_gold = profile["ad"] + profile["ap"]
         self_total = row.get("total_gold")
+        # class-level opponent traits so adaptation generalizes across matchups
+        opp_info = self.dragon.champion_info(opp_cid) if opp_cid else {}
+        opp_range = float((self.dragon.champion_stats(opp_cid) or {}).get("attackrange") or 0)
         return {
+            "opp_is_ranged": 1.0 if opp_range >= 300 else 0.0,
+            "opp_attack": float(opp_info.get("attack") or 0) / 10.0,
+            "opp_magic": float(opp_info.get("magic") or 0) / 10.0,
+            "opp_defense": float(opp_info.get("defense") or 0) / 10.0,
             "ap_share": ap_share,
             "opp_pos": opp_pos,
             "level_diff": level_diff,
@@ -406,6 +415,10 @@ class ShopDataset:
                 ex["ap_share"],
                 ex["level_diff"] / 5.0,
                 ex["has_opp"],
+                ex["opp_is_ranged"],
+                ex["opp_attack"],
+                ex["opp_magic"],
+                ex["opp_defense"],
                 *extras,
             ],
             dtype=torch.float32,
@@ -449,7 +462,9 @@ class PrefixModel(nn.Module):
             nn.ReLU(),
             nn.Linear(D_MODEL, D_MODEL),
         )
-        self.head = nn.Linear(D_MODEL, n_label)
+        # head sees the query token AND the encoded lane-opponent token directly,
+        # so matchup adaptation doesn't depend on one attention hop being learned
+        self.head = nn.Linear(2 * D_MODEL, n_label)
 
     def forward(self, champs, sides, items, query, inv, hist):
         item_e = self.item_emb(items)
@@ -465,7 +480,10 @@ class PrefixModel(nn.Module):
         never = torch.zeros(sides.size(0), 1, dtype=torch.bool, device=sides.device)
         key_pad = torch.cat([never, sides == 0, hist == 0], dim=1)
         encoded = self.encoder(seq, src_key_padding_mask=key_pad)
-        return self.head(encoded[:, 0])
+        board_enc = encoded[:, 1 : BOARD + 1]
+        opp_mask = (sides == SIDE_LANE_OPP).unsqueeze(-1)
+        opp_vec = (board_enc * opp_mask).sum(dim=1)  # zeros when no lane opponent
+        return self.head(torch.cat([encoded[:, 0], opp_vec], dim=1))
 
 
 def predict_top3(model, dataset: ShopDataset, device, labels: list[int]) -> list[list[int]]:
