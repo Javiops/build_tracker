@@ -47,6 +47,11 @@ class DataDragon:
         champ = self._champ_by_id.get(champion_id) or {}
         return champ.get("info") or {}
 
+    def champion_stats(self, champion_id: int) -> dict:
+        """Base stats block (attackrange, hp, armor, …) from champion.json."""
+        champ = self._champ_by_id.get(champion_id) or {}
+        return champ.get("stats") or {}
+
     def champion_id_by_name(self, name: str) -> int:
         """Numeric id from a display name ('Lee Sin') or internal id ('LeeSin')."""
         if not hasattr(self, "_champ_by_name"):
@@ -97,8 +102,11 @@ class DataDragon:
         is_trinket = "Trinket" in tags
         is_consumable = "Consumable" in tags
         is_boots = "Boots" in tags
-        is_completed = depth >= 3
-        is_component = depth == 2 and not is_boots
+        # Final items either sit deep in the tree OR combine straight from
+        # basics and build into nothing (Rabadon's, Infinity Edge are depth 2).
+        builds_into = data.get("into") or []
+        is_completed = depth >= 3 or (bool(from_items) and not builds_into)
+        is_component = bool(from_items) and bool(builds_into) and not is_boots
         is_support_gold = "GoldPer" in tags
         is_pink_ward = item_id in {2055, 772043}
         skip = (

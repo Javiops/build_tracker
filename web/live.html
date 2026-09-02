@@ -89,7 +89,8 @@ async function tick() {
       </div>
       <div class="card">
         <div class="label">Top picks</div>
-        ${d.top.map(it => itemRow(ver, it, true)).join("")}
+        ${d.top.length ? d.top.map(it => itemRow(ver, it, true)).join("") :
+          `<div class="offline" style="padding:10px 0">Nothing buyable — inventory full or all options blocked.</div>`}
       </div>
       <div class="card">
         <div class="label">Your items</div>

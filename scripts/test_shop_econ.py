@@ -59,6 +59,11 @@ assert owned[3145] == 0
 from app.shop_econ import is_blocked
 
 assert is_blocked(4646, [4646], dragon), "owned Stormsurge blocks a second one"
+assert is_blocked(3089, [3089], dragon), "owned Rabadon's (depth 2!) blocks a second one"
+assert is_blocked(3031, [3031], dragon), "owned Infinity Edge (depth 2!) blocks a second one"
+assert dragon.classify(3089)["is_completed"], "Rabadon's counts as completed"
+assert not dragon.classify(1058)["is_completed"], "Needlessly Large Rod is not a final item"
+assert dragon.classify(3044)["is_component"], "Phage combines and builds onward"
 assert not is_blocked(4646, [3145], dragon)
 assert not is_blocked(1036, [1036], dragon), "components stack freely"
 assert is_blocked(1001, [1001], dragon), "second Boots blocked"
