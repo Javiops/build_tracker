@@ -57,6 +57,13 @@ class Predictor:
             cls = self.dragon.classify(item_id)
             if cls.get("is_completed") or cls.get("is_boots"):
                 self._final_components[item_id] = components_of(item_id, self.dragon)
+        # Items that are sensible buys outside any recipe plan: starter/value
+        # items (no recipe in either direction), Dark Seal, control wards.
+        self._standalone: set[int] = {1082, 2055, 772043}
+        for item_id in self.label_ids:
+            data = self.dragon.item(item_id) or {}
+            if not data.get("from") and not data.get("into"):
+                self._standalone.add(item_id)
 
     def _probs(self, row: dict) -> tuple[torch.Tensor, torch.Tensor]:
         """(affordability-masked probs, raw probs). The raw ones rank what the
@@ -134,6 +141,23 @@ class Predictor:
                 return None
             return cost, inv_c
 
+        # The plan: which final items the model wants for this board/matchup,
+        # asked at a can-afford-it state (raw low-gold logits are untrained).
+        plan = self._plan_probs(row)
+        finals = []
+        for fid, comps in self._final_components.items():
+            p = float(plan[self.label_index[fid]])
+            if p >= 0.15 and not is_blocked(fid, inventory, self.dragon):
+                finals.append((p, fid, comps))
+        finals.sort(reverse=True)
+        # Plan-consistency: an optimal buy must advance a wanted final (or be
+        # a standalone value item) — otherwise 300g gets burned on a Dagger
+        # while the player is saving toward Black Cleaver.
+        allowed: set[int] = set(self._standalone)
+        for p, fid, comps in finals[:4]:
+            if p >= 0.3:
+                allowed |= comps | {fid}
+
         top = []
         for idx in torch.argsort(first_probs, descending=True).tolist():
             item_id = self.label_ids[idx]
@@ -144,9 +168,7 @@ class Predictor:
                 break
 
         # Basket: one forward pass, greedy down the ranked list under the
-        # running constraints (budget, slots, purchase blocks). The model
-        # predicts THIS visit's whole basket from the arrival state, so
-        # re-querying mid-basket answers the wrong question (measured worse).
+        # running constraints (budget, slots, purchase blocks, plan).
         basket = []
         sim_inv = list(inventory)
         budget = start_budget
@@ -155,6 +177,8 @@ class Predictor:
             if prob < self.threshold or len(basket) >= max_items:
                 break
             item_id = self.label_ids[idx]
+            if item_id not in allowed and prob < 0.95:
+                continue
             buy = buyable(item_id, sim_inv, budget)
             if buy is None:
                 continue
@@ -165,13 +189,6 @@ class Predictor:
 
         # "Building toward" arrows: for each non-final buy, the most probable
         # wanted final item whose recipe contains it.
-        plan = self._plan_probs(row)
-        finals = []
-        for fid, comps in self._final_components.items():
-            p = float(plan[self.label_index[fid]])
-            if p >= 0.15 and not is_blocked(fid, inventory, self.dragon):
-                finals.append((p, fid, comps))
-        finals.sort(reverse=True)
         for entry in basket:
             entry["target"] = None
             if entry["item_id"] in self._final_components:
