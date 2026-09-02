@@ -55,4 +55,15 @@ assert spent == storm_total - alt_total, spent
 combine_cost(4646, owned, dragon, consume=True)
 assert owned[3145] == 0
 
+# Purchase blocks: legendaries limited to 1, one boots line only.
+from app.shop_econ import is_blocked
+
+assert is_blocked(4646, [4646], dragon), "owned Stormsurge blocks a second one"
+assert not is_blocked(4646, [3145], dragon)
+assert not is_blocked(1036, [1036], dragon), "components stack freely"
+assert is_blocked(1001, [1001], dragon), "second Boots blocked"
+assert not is_blocked(3047, [1001], dragon), "Tabi upgrade from owned Boots allowed"
+assert is_blocked(3047, [3006], dragon), "Tabi blocked when owning Berserker's"
+assert is_blocked(3047, [3047], dragon), "second Tabi blocked"
+
 print("ok shop_econ")

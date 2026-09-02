@@ -39,6 +39,11 @@ def _player_name(player: dict) -> str:
     return player.get("riotId") or player.get("summonerName") or ""
 
 
+def _position(player: dict) -> str:
+    pos = (player.get("position") or "").upper()
+    return "" if pos in ("", "NONE") else pos
+
+
 def _player_items(player: dict, dragon: DataDragon) -> list[int]:
     out: list[int] = []
     for item in player.get("items") or []:
@@ -103,7 +108,7 @@ def snapshot_to_row(snap: dict, dragon: DataDragon) -> dict | None:
                 "champion": player.get("championName") or "",
                 "champion_id": champ_id,
                 "team_id": TEAM_IDS.get(player.get("team") or "", 200),
-                "role": player.get("position") or "",
+                "role": _position(player),
                 "level": player.get("level"),
                 "gold": None,  # not exposed by the live API
                 "items": _player_items(player, dragon),
@@ -113,7 +118,7 @@ def snapshot_to_row(snap: dict, dragon: DataDragon) -> dict | None:
     return {
         "champion": me.get("championName") or "",
         "champion_id": dragon.champion_id_by_name(me.get("championName") or ""),
-        "role": me.get("position") or "",
+        "role": _position(me),
         "team_id": team,
         "gold": gold,  # exact, unlike the frame-stale training value
         "total_gold": None,

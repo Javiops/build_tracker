@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
 
 from app.config import DATA_DIR
 from app.ddragon import default_dragon
-from app.shop_econ import GOLD_DRIFT, combine_cost, damage_profile
+from app.shop_econ import GOLD_DRIFT, combine_cost, damage_profile, is_blocked
 
 ML_DIR = DATA_DIR / "ml"
 MAX_OTHERS = 9
@@ -40,7 +40,7 @@ HIST_LEN = 12
 SEED = 16
 QUERY_DIM = 22
 BASKET_THRESHOLD = 0.8  # swept 0.5-0.8 on the honest model: best F1/exact-set
-CACHE_VERSION = "v2"
+CACHE_VERSION = "v3"  # v3: purchase blocks (unique legendaries, boots) in the mask
 ROLES = {"TOP": 1, "JUNGLE": 2, "MIDDLE": 3, "BOTTOM": 4, "UTILITY": 5}
 # side ids: 0 pad, 1 ally, 2 enemy, 3 self, 4 lane opponent, 5 history token
 SIDE_ALLY, SIDE_ENEMY, SIDE_SELF, SIDE_LANE_OPP, SIDE_HISTORY = 1, 2, 3, 4, 5
@@ -336,6 +336,9 @@ class ShopDataset:
         for item_id, idx, base, total in self._label_meta:
             # cost is always in [base, total]: only the band in between needs the
             # recursive combine walk, which keeps this loop fast.
+            if is_blocked(item_id, inventory, self.dragon):
+                self.legal[i, idx] = False
+                continue
             if total <= allowed:
                 continue
             if base > allowed:

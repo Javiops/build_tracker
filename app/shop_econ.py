@@ -123,6 +123,36 @@ def buy_cost(item_id: int, inventory: list[int], dragon: DataDragon) -> int:
     return combine_cost(item_id, Counter(int(i) for i in inventory if i), dragon)
 
 
+def components_of(item_id: int, dragon: DataDragon) -> set[int]:
+    """Every item id anywhere in the recipe tree below item_id."""
+    out: set[int] = set()
+    stack = list(dragon.from_ids(item_id))
+    while stack:
+        comp = stack.pop()
+        if comp in out:
+            continue
+        out.add(comp)
+        stack.extend(dragon.from_ids(comp))
+    return out
+
+
+def is_blocked(item_id: int, inventory: list[int], dragon: DataDragon) -> bool:
+    """Purchase restrictions the recipe math doesn't capture: completed
+    (legendary) items are Limited to 1, and only one boots line is allowed
+    unless the owned boots build into the candidate."""
+    inv = [int(i) for i in inventory if i]
+    if dragon.classify(item_id).get("is_completed") and item_id in inv:
+        return True
+    tags = set((dragon.item(item_id) or {}).get("tags") or [])
+    if "Boots" in tags:
+        comps = components_of(item_id, dragon)
+        for owned in inv:
+            owned_tags = (dragon.item(owned) or {}).get("tags") or []
+            if "Boots" in owned_tags and owned not in comps:
+                return True
+    return False
+
+
 def inventory_state(inventory: list[int], gold: int, dragon: DataDragon) -> dict:
     inv = [int(i) for i in inventory if i]
     inv_c = Counter(inv)
