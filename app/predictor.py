@@ -48,8 +48,20 @@ class Predictor:
         ).to(self.device)
         self.model.load_state_dict(blob["state_dict"])
         self.model.eval()
+        # Final items (and finished boots) a purchase can be "building toward",
+        # with their full recursive component sets for arrow resolution.
+        from app.shop_econ import components_of
 
-    def _probs(self, row: dict) -> torch.Tensor:
+        self._final_components: dict[int, set[int]] = {}
+        for item_id in self.label_ids:
+            cls = self.dragon.classify(item_id)
+            if cls.get("is_completed") or cls.get("is_boots"):
+                self._final_components[item_id] = components_of(item_id, self.dragon)
+
+    def _probs(self, row: dict) -> tuple[torch.Tensor, torch.Tensor]:
+        """(affordability-masked probs, raw probs). The raw ones rank what the
+        model wants regardless of current gold — needed for save/target logic,
+        where the wanted item is often exactly the one the mask zeroes out."""
         ds = tp.ShopDataset([row], self.champ_index, self.item_index, self.label_index, self.dragon)
         batch = next(ds.batches(1, shuffle=False))
         with torch.no_grad():
@@ -61,19 +73,31 @@ class Predictor:
                 batch["inv"].to(self.device),
                 batch["hist"].to(self.device),
             )
-            logits = logits.masked_fill(~batch["legal"].to(self.device), -1e4)
-        return torch.sigmoid(logits)[0].cpu()
+            raw = torch.sigmoid(logits)[0].cpu()
+            masked = torch.sigmoid(logits.masked_fill(~batch["legal"].to(self.device), -1e4))[0].cpu()
+        return masked, raw
 
-    def predict(self, row: dict, top_k: int = 3, max_items: int = 5) -> dict[str, Any]:
-        """row must be shaped like one exported visit (see baseline._example)."""
+    def predict(
+        self,
+        row: dict,
+        top_k: int = 3,
+        max_items: int = 5,
+        budget_slack: float | None = None,
+    ) -> dict[str, Any]:
+        """row must be shaped like one exported visit (see baseline._example).
+
+        budget_slack defaults to GOLD_DRIFT (offline gold is up to 60s stale);
+        pass 0 for live states where gold is exact and every recommended buy
+        must be affordable right now.
+        """
         from collections import Counter
 
         from app.shop_econ import GOLD_DRIFT, combine_cost, is_blocked
 
-        first_probs = self._probs(row)
+        first_probs, raw_probs = self._probs(row)
         inventory = [int(i) for i in (row.get("inventory") or []) if i]
-        # match the calibrated affordability: budget carries the income allowance
-        start_budget = float(row.get("gold") or 0) + GOLD_DRIFT
+        gold = float(row.get("gold") or 0)
+        start_budget = gold + (GOLD_DRIFT if budget_slack is None else budget_slack)
 
         def buyable(item_id: int, inv: list[int], budget: float) -> tuple[int, Counter] | None:
             """Cost and post-purchase inventory if the buy is possible: not
@@ -116,7 +140,38 @@ class Predictor:
             sim_inv = list(inv_c.elements())
             budget -= cost
 
-        return {"top": top, "basket": basket, "threshold": self.threshold}
+        # "Building toward" arrows: for each non-final buy, the most probable
+        # wanted final item whose recipe contains it.
+        finals = []
+        for fid, comps in self._final_components.items():
+            p = float(raw_probs[self.label_index[fid]])
+            if p >= 0.15 and not is_blocked(fid, inventory, self.dragon):
+                finals.append((p, fid, comps))
+        finals.sort(reverse=True)
+        for entry in basket:
+            entry["target"] = None
+            if entry["item_id"] in self._final_components:
+                continue  # already a full item
+            for p, fid, comps in finals:
+                if entry["item_id"] in comps:
+                    entry["target"] = {"item_id": fid, "name": self.dragon.item_name(fid), "prob": round(p, 3)}
+                    break
+
+        # Save option: only when nothing affordable clears the bar but the model
+        # clearly wants a final item that is out of gold reach.
+        save = None
+        if not basket and finals and finals[0][0] >= 0.4:
+            p, fid, _comps = finals[0]
+            cost = combine_cost(fid, Counter(inventory), self.dragon)
+            if cost > gold:
+                save = {
+                    "item_id": fid,
+                    "name": self.dragon.item_name(fid),
+                    "prob": round(p, 3),
+                    "need": int(cost - gold),
+                }
+
+        return {"top": top, "basket": basket, "save": save, "threshold": self.threshold}
 
     def _item_payload(self, item_id: int, prob: float, inventory: list[int]) -> dict:
         from app.shop_econ import buy_cost

@@ -65,9 +65,11 @@ def api_live() -> dict:
     row = snapshot_to_row(snap, predictor.dragon)
     if not row:
         return {"in_game": False}
-    result = predictor.predict(row)
+    # live gold is exact: every "optimal buy" must be affordable right now
+    result = predictor.predict(row, budget_slack=0)
     return {
         "in_game": True,
+        "save": result["save"],
         "champion": row["champion"],
         "role": row["role"],
         "gold": row["gold"],

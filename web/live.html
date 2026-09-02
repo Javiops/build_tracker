@@ -27,6 +27,20 @@
   .item img { width: 34px; height: 34px; border-radius: 5px; border: 1px solid #2a3040; }
   .item .name { flex: 1; }
   .item .cost { color: #f0c75e; font-size: 13px; min-width: 52px; text-align: right; }
+  .buy {
+    background: #18213380; border: 1px solid #2c3b5a; border-left: 3px solid #5383e8;
+    border-radius: 8px; padding: 8px 10px; margin: 6px 0;
+  }
+  .arrow { color: #7a8494; font-size: 18px; padding: 0 2px; }
+  .target { display: flex; align-items: center; gap: 6px; }
+  .target img { width: 26px; height: 26px; border-radius: 4px; border: 1px solid #3a4a6a; }
+  .target .tname { font-size: 12px; color: #9fb3d9; max-width: 110px; }
+  .save-row {
+    background: #2a230f80; border: 1px solid #5a4a1e; border-left: 3px solid #f0c75e;
+    border-radius: 8px; padding: 10px; margin: 6px 0;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .save-row .badge { color: #f0c75e; font-weight: 700; letter-spacing: .06em; font-size: 12px; }
   .bar { height: 5px; background: #222a3a; border-radius: 3px; overflow: hidden; margin-top: 3px; }
   .bar i { display: block; height: 100%; background: #5383e8; }
   .prob { font-size: 12px; color: #7a8494; }
@@ -61,6 +75,33 @@ function itemRow(ver, it, withBar) {
   </div>`;
 }
 
+function buyRow(ver, it) {
+  const target = it.target ? `
+    <div class="target">
+      <span class="arrow">→</span>
+      <img src="${icon(ver, it.target.item_id)}" title="${it.target.name}">
+      <span class="tname">${it.target.name}</span>
+    </div>` : "";
+  return `<div class="buy"><div class="item" style="padding:0">
+    <img src="${icon(ver, it.item_id)}" alt="">
+    <div class="name">${it.name}
+      <div class="bar"><i style="width:${Math.round(it.prob * 100)}%"></i></div>
+    </div>
+    ${target}
+    <div><div class="cost">${it.cost}g</div><div class="prob">${Math.round(it.prob * 100)}%</div></div>
+  </div></div>`;
+}
+
+function saveRow(ver, s) {
+  return `<div class="save-row">
+    <span class="badge">SAVE</span>
+    <span class="arrow">→</span>
+    <img class="target-img" src="${icon(ver, s.item_id)}" style="width:30px;height:30px;border-radius:5px;border:1px solid #5a4a1e" title="${s.name}">
+    <div class="name">${s.name}</div>
+    <div class="cost">need ${s.need}g more</div>
+  </div>`;
+}
+
 async function tick() {
   try {
     const r = await fetch("/api/live");
@@ -83,9 +124,11 @@ async function tick() {
         <span>lvl ${d.level}</span><span>${mins}:${secs}</span>
       </div>
       <div class="card">
-        <div class="label">Buy now</div>
-        ${d.basket.length ? d.basket.map(it => itemRow(ver, it, true)).join("") :
-          `<div class="offline" style="padding:10px 0">Nothing confident enough — save gold.</div>`}
+        <div class="label">Optimal buys</div>
+        ${d.basket.map(it => buyRow(ver, it)).join("")}
+        ${d.save ? saveRow(ver, d.save) : ""}
+        ${!d.basket.length && !d.save ?
+          `<div class="offline" style="padding:10px 0">Nothing confident enough right now.</div>` : ""}
       </div>
       <div class="card">
         <div class="label">Top picks</div>
