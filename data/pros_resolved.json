@@ -19,9 +19,9 @@
     ],
     "ok": true,
     "label": "T1 Faker",
-    "puuid": "LiSAyOSAIXd30A0Od-9RH1-5UR7RKDtYszdyJ3-6-AdbeDFhWB0jExX4-fcXb3CUqb_FvfTzbkQB_Q",
-    "game_name": "Hide on bush",
-    "tag_line": "KR1",
+    "puuid": "6w10fd9RgIBY-sGQqcWEvpmy3fbuHN-kZmhIKhcjnp7deo1U6VI4VR1So8JmoNtwSqSwq-R01Phzjg",
+    "game_name": "Faker",
+    "tag_line": "구라티",
     "platform": "kr",
     "regional": "asia",
     "source": "db"
@@ -46,9 +46,9 @@
     ],
     "ok": true,
     "label": "T1 Oner",
-    "puuid": "1vQ4IWjQiM-wVNt0uBA1skr3w-CZZN3NbdzQZBsbXnt-PSQsCW_P8rpiQfv9eI28Y6VyaDKSQv_C1Q",
-    "game_name": "오 너",
-    "tag_line": "111",
+    "puuid": "9n-Rq9VqeOwstg4BOKhmuPdtjnGG5v9AjCFE5VpWWYOWOnY1YiLKvLXi4ONQj_6mvWMDJd_5PXDMbQ",
+    "game_name": "Oner",
+    "tag_line": "KOR",
     "platform": "kr",
     "regional": "asia",
     "source": "db"
@@ -105,7 +105,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Peyz",
@@ -149,8 +149,14 @@
         "KR1"
       ]
     ],
+    "ok": true,
     "label": "T1 Keria",
-    "ok": false
+    "puuid": "ayfO8pECdr84MPKUQUlCzsItWM8mk88EXLz0ZKfx_CgfUvkHcptXRQHWJDamyc-y8TV4lk7mmbQoIw",
+    "game_name": "keria",
+    "tag_line": "1212",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
   },
   {
     "id": "Kiin",
@@ -204,7 +210,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Chovy",
@@ -231,7 +237,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Ruler",
@@ -258,7 +264,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Duro",
@@ -304,12 +310,12 @@
     ],
     "ok": true,
     "label": "HLE Zeus",
-    "puuid": "SavT3GbasE7SleyX5iFVFJWSmlx75aLpa7eCNGBjDwSrczBod4DdUd6Wb2GOr_wAi3yJe3eg8mGAyw",
-    "game_name": "제우스",
-    "tag_line": "KR1",
+    "puuid": "uzMpvHldWVVKRMEBJ0REvhyR12RJqDkH5GzktE5STME_Gn1WSAdbwkQ49xmdpljnXYpC_IWJvNHaWA",
+    "game_name": "Zeus",
+    "tag_line": "KUGG",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Kanavi",
@@ -336,7 +342,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Zeka",
@@ -363,7 +369,7 @@
     "tag_line": "KＲ1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Gumayusi",
@@ -417,7 +423,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Siwoo",
@@ -441,7 +447,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Lucid",
@@ -487,9 +493,9 @@
     ],
     "ok": true,
     "label": "DK ShowMaker",
-    "puuid": "LhK-Y73myNeWzG7j5ih7TrN6-eyjU5_ohugjcFvD89mHrY7QIgrklI0fj35ko_2yXgVfzhA7xVj1dg",
-    "game_name": "DK ShowMaker",
-    "tag_line": "KR1",
+    "puuid": "AzQkIBNEgcXm14BjNcplSgJm4BcMSryUVo7C9cnWtg1tNXDeULlQfY3vMBqf9D5QmLCfxqk_B2_tIA",
+    "game_name": "SHOWMAKER",
+    "tag_line": "mio韩服",
     "platform": "kr",
     "regional": "asia",
     "source": "db"
@@ -540,7 +546,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "PerfecT",
@@ -611,7 +617,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Jiwoo",
@@ -653,7 +659,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Effort",
@@ -701,7 +707,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Raptor",
@@ -718,8 +724,14 @@
         "KR1"
       ]
     ],
+    "ok": true,
     "label": "BFX Raptor",
-    "ok": false
+    "puuid": "T9wair89gnunyj25x_k7vjtnPfgEMACpHJEUrhVwTS1Fyn7cgsGEo0M0-N3xQVNK7Ry32-Ud69Sfzw",
+    "game_name": "Raptor",
+    "tag_line": "013",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
   },
   {
     "id": "VicLa",
@@ -743,7 +755,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Taeyoon",
@@ -785,7 +797,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Kingen",
@@ -825,7 +837,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Scout",
@@ -859,7 +871,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Rich",
@@ -879,7 +891,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Vincenzo",
@@ -899,7 +911,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Ucal",
@@ -923,7 +935,7 @@
     "tag_line": "KＲ1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Andil",
@@ -943,7 +955,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Casting",
@@ -980,8 +992,14 @@
         "KR1"
       ]
     ],
+    "ok": true,
     "label": "BRO GIDEON",
-    "ok": false
+    "puuid": "iRyrypfkoKbKUnbFMogBPAaj1GgE0GtJnv3gN9g_jVDJkSOoYDBKnzX2y4FZ6LF4Mh7WImvTZvqimA",
+    "game_name": "GIDEON",
+    "tag_line": "KR2",
+    "platform": "kr",
+    "regional": "asia",
+    "source": "db"
   },
   {
     "id": "Fisher",
@@ -1001,7 +1019,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Teddy",
@@ -1021,7 +1039,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Namgung",
@@ -1041,7 +1059,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "DuDu",
@@ -1061,7 +1079,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Pyosik",
@@ -1081,7 +1099,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Clozer",
@@ -1101,7 +1119,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "deokdam",
@@ -1121,7 +1139,7 @@
     "tag_line": "KR1",
     "platform": "kr",
     "regional": "asia",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Peter",
@@ -1177,7 +1195,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Caps",
@@ -1205,7 +1223,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Hans Sama",
@@ -1229,7 +1247,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Labrov",
@@ -1275,7 +1293,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Yike",
@@ -1299,7 +1317,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "kyeahoo",
@@ -1363,7 +1381,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Soboro",
@@ -1387,7 +1405,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Razork",
@@ -1411,7 +1429,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Vladi",
@@ -1435,7 +1453,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Upset",
@@ -1459,7 +1477,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Lospa",
@@ -1511,7 +1529,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Jackies",
@@ -1531,7 +1549,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Flakked",
@@ -1551,7 +1569,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Jun",
@@ -1575,7 +1593,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Myrwn",
@@ -1623,7 +1641,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Supa",
@@ -1643,7 +1661,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Alvaro",
@@ -1663,7 +1681,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Maynter",
@@ -1683,7 +1701,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Rhilech",
@@ -1696,8 +1714,14 @@
         "EUW"
       ]
     ],
+    "ok": true,
     "label": "NAVI Rhilech",
-    "ok": false
+    "puuid": "zdUuHZ7cIFR1nyD82ub9DO4UeGiut8uQesIf6cEcXM0MGI98FwBfQqM7S5cY8PEF3J8S5ocQT0H26Q",
+    "game_name": "Rhilech",
+    "tag_line": "15105",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "db"
   },
   {
     "id": "Poby",
@@ -1721,7 +1745,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "SamD",
@@ -1745,7 +1769,7 @@
     "tag_line": "KR1",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Parus",
@@ -1765,7 +1789,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Rooster",
@@ -1785,7 +1809,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Boukada",
@@ -1805,7 +1829,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "nuc",
@@ -1825,7 +1849,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Paduck",
@@ -1849,7 +1873,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Stend",
@@ -1897,7 +1921,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "SlowQ",
@@ -1921,7 +1945,7 @@
     "tag_line": "KR1",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Jopa",
@@ -1941,7 +1965,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Mikyx",
@@ -1961,7 +1985,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Tracyn",
@@ -1995,7 +2019,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Serin",
@@ -2029,7 +2053,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Way",
@@ -2049,7 +2073,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Naak Nako",
@@ -2069,7 +2093,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Lyncas",
@@ -2107,7 +2131,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Carzzy",
@@ -2127,7 +2151,7 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   },
   {
     "id": "Fleshy",
@@ -2147,6 +2171,6 @@
     "tag_line": "EUW",
     "platform": "euw1",
     "regional": "europe",
-    "source": "riot"
+    "source": "db"
   }
 ]

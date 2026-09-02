@@ -151,9 +151,14 @@ if __name__ == "__main__":
     parser.add_argument("--count", type=int, default=DEFAULT_MATCH_COUNT)
     parser.add_argument("--force", action="store_true", help="Re-fetch games already stored")
     parser.add_argument("--ladder", action="store_true", help="Pull top solo ladder for a region this patch")
-    parser.add_argument("--region", default="kr", choices=("kr", "euw"), help="Ladder server: kr or euw")
-    parser.add_argument("--size", type=int, default=500, help="Ladder size (Challenger + GM + Master by LP)")
+    parser.add_argument("--region", default="kr", choices=("kr", "euw", "both"), help="Ladder server: kr, euw, or both")
+    parser.add_argument("--size", type=int, default=500, help="Ladder size (0 = all of the selected tiers)")
     parser.add_argument("--patch", default=None, help="Patch like 16.17 (default: latest Data Dragon)")
+    parser.add_argument(
+        "--daily",
+        action="store_true",
+        help="Only games since local midnight; all Challenger + Grandmaster (faster incremental pull)",
+    )
     parser.add_argument("--pros", action="store_true", help="Resolve LCK/LEC accounts and append their patch games")
     parser.add_argument(
         "--backfill",
@@ -173,6 +178,8 @@ if __name__ == "__main__":
         if args.ladder
         else "ingest.log"
     )
+    if args.ladder and args.region == "both":
+        log_path = DATA_DIR / "ladder-daily.log"
 
     def log(event: dict) -> None:
         msg = event.get("message") or json.dumps(event)
@@ -189,9 +196,21 @@ if __name__ == "__main__":
 
         ingest_pros(patch=args.patch, progress=log)
     elif args.ladder:
+        from app.config import local_day_start_unix
         from app.ladder import ingest_ladder
 
-        ingest_ladder(size=args.size, patch=args.patch, progress=log, region=args.region)
+        regions = ("kr", "euw") if args.region == "both" else (args.region,)
+        daily = args.daily
+        kwargs = {
+            "patch": args.patch,
+            "progress": log,
+            "start_time": local_day_start_unix() if daily else None,
+            "tiers": ("challenger", "grandmaster") if daily else ("challenger", "grandmaster", "master"),
+            "max_games_per_player": 30 if daily else 200,
+            "size": 0 if daily else args.size,
+        }
+        for region in regions:
+            ingest_ladder(region=region, **kwargs)
     else:
         ingest_faker(count=args.count, progress=log, force=args.force)
 

@@ -35,11 +35,14 @@ def ingest_ladder(
     progress: Progress | None = None,
     max_games_per_player: int = 200,
     region: str = "kr",
+    start_time: int | None = None,
+    tiers: tuple[str, ...] = ("challenger", "grandmaster", "master"),
 ) -> dict:
     init_db()
     emit = progress or (lambda _event: None)
     patch = patch or patch_from_version(latest_version())
-    start_time = patch_start_unix(patch)
+    if start_time is None:
+        start_time = patch_start_unix(patch)
     spec = LADDER_REGIONS.get(region)
     if not spec:
         raise RiotError(f"Unknown ladder region {region}. Use kr or euw.")
@@ -53,15 +56,14 @@ def ingest_ladder(
     dragon = DataDragon()
 
     try:
-        emit({"step": "ladder", "message": f"Fetching {label} solo ladder (top {size})"})
-        ladder = top_solo_ladder(client, platform, size)
+        ladder = top_solo_ladder(client, platform, size, tiers=tiers)
         ladder_set = {row["puuid"] for row in ladder if row.get("puuid")}
         set_meta(f"ladder_size_{region}", str(len(ladder_set)))
         set_meta(f"ladder_patch_{region}", patch)
         emit(
             {
                 "step": "ladder",
-                "message": f"{len(ladder_set)} players · patch {patch}",
+                "message": f"{len(ladder_set)} {label} players ({', '.join(tiers)}) · patch {patch}",
                 "players": len(ladder_set),
             }
         )
@@ -98,7 +100,7 @@ def ingest_ladder(
         emit(
             {
                 "step": "list",
-                "message": f"{len(ordered)} unique ranked games since patch {patch} start",
+                "message": f"{len(ordered)} unique ranked games in this window",
                 "total": len(ordered),
             }
         )
@@ -154,7 +156,7 @@ def ingest_ladder(
             "errors": errors[:12],
             "message": (
                 f"Done. {ingested} new perspectives from {len(ordered)} unique games "
-                f"({len(ladder_set)} {label} ladder players, patch {patch})."
+                f"({len(ladder_set)} {label} {', '.join(tiers)}, patch {patch})."
             ),
         }
         emit(result)
@@ -166,13 +168,20 @@ def ingest_ladder(
         client.close()
 
 
-def top_solo_ladder(client: RiotClient, platform: str, size: int) -> list[dict]:
+def top_solo_ladder(
+    client: RiotClient,
+    platform: str,
+    size: int,
+    tiers: tuple[str, ...] = ("challenger", "grandmaster", "master"),
+) -> list[dict]:
+    kind_tier = {
+        "challenger": ("challenger", "CHALLENGER"),
+        "grandmaster": ("grandmaster", "GRANDMASTER"),
+        "master": ("master", "MASTER"),
+    }
     rows: list[dict] = []
-    for kind, tier in (
-        ("challenger", "CHALLENGER"),
-        ("grandmaster", "GRANDMASTER"),
-        ("master", "MASTER"),
-    ):
+    for name in tiers:
+        kind, tier = kind_tier[name]
         for entry in client.league_entries(platform, kind, SOLO_QUEUE_NAME):
             puuid = entry.get("puuid")
             if not puuid:
@@ -188,7 +197,9 @@ def top_solo_ladder(client: RiotClient, platform: str, size: int) -> list[dict]:
                 }
             )
     rows.sort(key=lambda r: (TIER_RANK.get(r["tier"], 9), -r["league_points"]))
-    return rows[:size]
+    if size and size > 0:
+        return rows[:size]
+    return rows
 
 
 def routing_for_match_id(match_id: str) -> tuple[str, str]:

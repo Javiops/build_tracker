@@ -94,9 +94,10 @@ class RiotClient:
         url = f"https://{regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids"
         ids: list[str] = []
         start = 0
-        remaining = count
-        while remaining > 0:
-            batch = min(remaining, 100)
+        # count <= 0 means "all matches in the window": page until a short chunk.
+        remaining = count if count > 0 else None
+        while remaining is None or remaining > 0:
+            batch = 100 if remaining is None else min(remaining, 100)
             params: dict[str, Any] = {"queue": queue, "start": start, "count": batch}
             if start_time:
                 params["startTime"] = start_time
@@ -105,7 +106,8 @@ class RiotClient:
             if len(chunk) < batch:
                 break
             start += batch
-            remaining -= batch
+            if remaining is not None:
+                remaining -= batch
         return ids
 
     def league_entries(self, platform: str, kind: str, queue: str) -> list[dict]:
