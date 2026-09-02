@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 from app.config import DATA_DIR
 from app.db import db
 from app.ddragon import default_dragon
+from app.shop_econ import decision_kind, event_arrival_gold, inventory_state, leftover_gold
 
 SEED = 16
 TRAIN_FRAC = 0.8
@@ -56,12 +57,41 @@ def _label(bought: list[int], dragon) -> tuple[int, str, bool] | None:
     return item_id, name, is_completed
 
 
-def _example(event: dict, prefix: list[dict], dragon) -> dict | None:
+def _others(event: dict) -> list[dict]:
+    out = []
+    for player in event.get("board") or []:
+        if player.get("is_self"):
+            continue
+        items = _item_ids(player.get("items") or [])
+        out.append(
+            {
+                "champion": player.get("champion_name") or "",
+                "champion_id": player.get("champion_id"),
+                "team_id": player.get("team_id"),
+                "role": player.get("team_position") or "",
+                "gold": player.get("gold"),
+                "level": player.get("level"),
+                "items": items,
+            }
+        )
+    return out
+
+
+def _example(event: dict, dragon) -> dict | None:
     bought = _item_ids(event.get("bought") or [])
     label = _label(bought, dragon)
     if not label:
         return None
     label_id, label_name, label_completed = label
+    inventory = _item_ids(event.get("inventory_before") or [])
+    gold = event_arrival_gold(event, dragon)
+    state = inventory_state(inventory, gold, dragon)
+    team = event.get("team_id")
+    self_row = next((p for p in event.get("board") or [] if p.get("is_self")), None) or {}
+    score = event.get("score") or {}
+    ally_obj = score.get(str(team)) or score.get(team) or {}
+    enemy_key = 100 if team == 200 else 200
+    enemy_obj = score.get(str(enemy_key)) or score.get(enemy_key) or {}
     return {
         "match_id": event.get("match_id"),
         "server": "euw" if str(event.get("match_id") or "").startswith("EUW") else "kr",
@@ -70,15 +100,30 @@ def _example(event: dict, prefix: list[dict], dragon) -> dict | None:
         "champion_id": event.get("champion_id"),
         "role": event.get("team_position") or "",
         "team_id": event.get("team_id"),
-        "gold": event.get("gold"),
+        "gold": gold,
+        "gold_left": leftover_gold(event),
+        "total_gold": self_row.get("gold"),
+        "ally_obj": ally_obj,
+        "enemy_obj": enemy_obj,
         "level": event.get("level"),
         "cs": event.get("cs"),
         "kills": event.get("kills") or 0,
         "deaths": event.get("deaths") or 0,
         "assists": event.get("assists") or 0,
-        "inventory": _item_ids(event.get("inventory_before") or []),
-        "prefix": prefix,
+        "inventory": inventory,
+        "can_complete": state["can_complete"],
+        "n_completable": state["n_completable"],
+        "cheapest_complete": state["cheapest_complete"],
+        "gold_after_complete": state["gold_after_complete"],
+        "n_inventory": state["n_inventory"],
+        "decision": decision_kind(bought, inventory, dragon),
+        "others": _others(event),
         "label_id": label_id,
+        "label_ids": [
+            item_id
+            for item_id in dict.fromkeys(bought)
+            if not dragon.classify(item_id).get("skip")
+        ],
         "label_name": label_name,
         "label_completed": label_completed,
     }
@@ -87,8 +132,6 @@ def _example(event: dict, prefix: list[dict], dragon) -> dict | None:
 def load_examples() -> list[dict]:
     dragon = default_dragon()
     examples: list[dict] = []
-    current_id = None
-    prefix: list[dict] = []
     with db() as conn:
         full = {
             row["match_id"]
@@ -114,24 +157,11 @@ def load_examples() -> list[dict]:
             match_id = row["match_id"]
             if match_id not in full:
                 continue
-            if match_id != current_id:
-                current_id = match_id
-                prefix = []
             event = json.loads(row["payload_json"])
             event["match_id"] = match_id
-            example = _example(event, list(prefix), dragon)
+            example = _example(event, dragon)
             if example:
                 examples.append(example)
-            bought = _item_ids(event.get("bought") or [])
-            if bought:
-                prefix.append(
-                    {
-                        "champion": event.get("champion_name") or "",
-                        "champion_id": event.get("champion_id"),
-                        "team_id": event.get("team_id"),
-                        "bought": bought,
-                    }
-                )
     return examples
 
 
@@ -198,10 +228,17 @@ def main() -> None:
     labels = {row["label_id"] for row in examples}
     completed = sum(1 for row in examples if row["label_completed"])
     games = {row["match_id"] for row in examples}
+    decisions = Counter(row["decision"] for row in examples)
     print(
         f"games {len(games)}  usable shops {len(examples)}  labels {len(labels)}  "
         f"completed {completed}/{len(examples)}"
     )
+    basket = sum(len(row.get("label_ids") or [row["label_id"]]) for row in examples) / max(len(examples), 1)
+    print(
+        "decisions  "
+        + "  ".join(f"{name} {decisions.get(name, 0)}" for name in ("complete", "component", "start", "save"))
+    )
+    print(f"basket  avg {basket:.2f} items per shop")
     train, test = split_by_match(examples)
     train_games = {row["match_id"] for row in train}
     test_games = {row["match_id"] for row in test}
@@ -216,13 +253,17 @@ def main() -> None:
         print()
         print("sample row")
         print(
-            f"  {sample['champion']} @ {sample['ts'] // 1000}s  gold={sample['gold']}  "
-            f"inv={sample['inventory']}"
+            f"  {sample['champion']} @ {sample['ts'] // 1000}s  "
+            f"gold_in={sample['gold']} leftover={sample.get('gold_left')}  "
+            f"can_complete={sample['can_complete']}  inv={sample['inventory']}"
         )
-        print(f"  prefix ({len(sample['prefix'])} earlier shops)")
-        for step in sample["prefix"][-4:]:
-            print(f"    {step['champion']} bought {step['bought']}")
-        print(f"  label {sample['label_name']} ({sample['label_id']})")
+        print(f"  others ({len(sample.get('others') or [])} players)")
+        for other in (sample.get("others") or [])[:4]:
+            print(f"    {other['champion']} items {other['items']}")
+        print(
+            f"  label {sample['label_name']} ({sample['label_id']})  "
+            f"basket {sample.get('label_ids')}  decision {sample['decision']}"
+        )
     score_baseline(train, test)
 
 
