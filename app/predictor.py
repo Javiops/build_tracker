@@ -143,11 +143,18 @@ class Predictor:
 
         # The plan: which final items the model wants for this board/matchup,
         # asked at a can-afford-it state (raw low-gold logits are untrained).
+        # Floors scale with the calibrated threshold so retrains that shift the
+        # probability scale (e.g. pos_weight changes) stay consistent.
+        target_floor = self.threshold * 0.2
+        plan_floor = self.threshold * 0.45
+        save_floor = self.threshold * 0.55
+        override = min(0.97, self.threshold + 0.18)
+
         plan = self._plan_probs(row)
         finals = []
         for fid, comps in self._final_components.items():
             p = float(plan[self.label_index[fid]])
-            if p >= 0.15 and not is_blocked(fid, inventory, self.dragon):
+            if p >= target_floor and not is_blocked(fid, inventory, self.dragon):
                 finals.append((p, fid, comps))
         finals.sort(reverse=True)
         # Plan-consistency: an optimal buy must advance a wanted final (or be
@@ -155,7 +162,7 @@ class Predictor:
         # while the player is saving toward Black Cleaver.
         allowed: set[int] = set(self._standalone)
         for p, fid, comps in finals[:4]:
-            if p >= 0.3:
+            if p >= plan_floor:
                 allowed |= comps | {fid}
 
         top = []
@@ -185,7 +192,7 @@ class Predictor:
                 if not basket:
                     model_save_prob = prob
                 break
-            if item_id not in allowed and prob < 0.95:
+            if item_id not in allowed and prob < override:
                 continue
             buy = buyable(item_id, sim_inv, budget)
             if buy is None:
@@ -212,7 +219,7 @@ class Predictor:
         if not basket and finals:
             p, fid, _comps = finals[0]
             cost = combine_cost(fid, Counter(inventory), self.dragon)
-            if model_save_prob >= self.threshold or (p >= 0.4 and cost > gold):
+            if model_save_prob >= self.threshold or (p >= save_floor and cost > gold):
                 save = {
                     "item_id": fid,
                     "name": self.dragon.item_name(fid),

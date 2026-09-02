@@ -554,6 +554,69 @@ def predict_baskets(
     return baskets
 
 
+def calibrate_threshold(
+    model, dataset: ShopDataset, rows: list[dict], labels: list[int], dragon, sample: int = 20000
+) -> float:
+    """Pick the basket threshold by F1 on a test sample. Retrains that change
+    the probability scale (pos_weight, new classes) recalibrate automatically."""
+    n = min(sample, len(rows))
+    probs_all = []
+    device = next(model.parameters()).device
+    model.eval()
+    seen = 0
+    with torch.no_grad():
+        for batch in dataset.batches(BATCH, shuffle=False):
+            logits = model(
+                batch["champs"].to(device),
+                batch["sides"].to(device),
+                batch["items"].to(device),
+                batch["query"].to(device),
+                batch["inv"].to(device),
+                batch["hist"].to(device),
+            )
+            logits = logits.masked_fill(~batch["legal"].to(device), -1e4)
+            probs_all.append(torch.sigmoid(logits).cpu())
+            seen += logits.size(0)
+            if seen >= n:
+                break
+    probs_all = torch.cat(probs_all)[:n]
+    order_all = torch.argsort(probs_all, dim=1, descending=True)
+    best_tau, best_f1 = 0.5, -1.0
+    for tau in (0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8):
+        f1 = 0.0
+        scored = 0
+        for r in range(n):
+            actual = {int(i) for i in (rows[r].get("label_ids") or []) if i}
+            if not actual:
+                continue
+            row_p = probs_all[r]
+            budget = float(dataset.budget[r]) + GOLD_DRIFT
+            inv_c = Counter(dataset.inventories[r])
+            basket: set[int] = set()
+            for idx in order_all[r].tolist():
+                if float(row_p[idx]) < tau or len(basket) >= 5:
+                    break
+                item_id = labels[idx]
+                cost = combine_cost(item_id, inv_c, dragon)
+                if cost > budget:
+                    continue
+                combine_cost(item_id, inv_c, dragon, consume=True)
+                inv_c[item_id] += 1
+                budget -= cost
+                basket.add(item_id)
+            hit = len(actual & basket)
+            p = hit / len(basket) if basket else 0.0
+            q = hit / len(actual)
+            f1 += 2 * p * q / (p + q) if p + q > 0 else 0.0
+            scored += 1
+        f1 /= max(scored, 1)
+        print(f"  calibration tau {tau:.2f}  f1 {f1:.3f}", flush=True)
+        if f1 > best_f1:
+            best_tau, best_f1 = tau, f1
+    print(f"  calibrated basket threshold: {best_tau:.2f} (f1 {best_f1:.3f})", flush=True)
+    return best_tau
+
+
 def score_pred_baskets(rows: list[dict], baskets: list[list[int]], threshold: float) -> None:
     prec = rec = exact = 0.0
     pred_sizes = actual_sizes = 0
@@ -725,8 +788,9 @@ def main() -> None:
     print(flush=True)
     per_champ(test, guesses)
     print(flush=True)
-    baskets = predict_baskets(model, test_ds, device, label_ids, dragon, threshold=BASKET_THRESHOLD)
-    score_pred_baskets(test, baskets, BASKET_THRESHOLD)
+    tau = calibrate_threshold(model, test_ds, test, label_ids, dragon)
+    baskets = predict_baskets(model, test_ds, device, label_ids, dragon, threshold=tau)
+    score_pred_baskets(test, baskets, tau)
 
     out_path = ML_DIR / os.environ.get("PREFIX_OUT", "prefix_model.pt")
     torch.save(
@@ -746,7 +810,7 @@ def main() -> None:
                 "history": USE_HISTORY,
                 "hist_len": HIST_LEN,
                 "gold_drift": GOLD_DRIFT,
-                "basket_threshold": BASKET_THRESHOLD,
+                "basket_threshold": tau,
             },
             "metrics": {"top1": m1, "top3": m3, "baseline_top1": b1, "baseline_top3": b3},
             "trained_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
