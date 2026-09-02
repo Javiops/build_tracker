@@ -6,6 +6,7 @@ from copy import deepcopy
 
 from app.config import SHOP_IDLE_MS
 from app.ddragon import DataDragon
+from app.shop_econ import arrival_from_parts
 
 SHOP_ACTIONS = {"ITEM_PURCHASED", "ITEM_SOLD", "ITEM_UNDO"}
 ITEM_EVENTS = SHOP_ACTIONS | {"ITEM_DESTROYED"}
@@ -94,6 +95,8 @@ def reconstruct_game(match: dict, timeline: dict, dragon: DataDragon) -> tuple[d
         bought, consumed = _diff(before, after)
         owner = by_pid[pid]
         stats = ov["end_frames"].get(pid) or {}
+        leftover = int(stats.get("currentGold") or 0)
+        arrival = arrival_from_parts(leftover, before, bought, consumed, dragon)
         end_kda = ov["end_kda"][pid]
         events.append(
             {
@@ -107,7 +110,8 @@ def reconstruct_game(match: dict, timeline: dict, dragon: DataDragon) -> tuple[d
                 "team_id": owner["team_id"],
                 "team_position": owner["team_position"],
                 "riot_id": owner["riot_id"],
-                "gold": stats.get("currentGold", 500),
+                "gold": arrival,
+                "gold_left": leftover,
                 "level": stats.get("level"),
                 "cs": (stats.get("minionsKilled") or 0) + (stats.get("jungleMinionsKilled") or 0),
                 "kills": end_kda["kills"],
@@ -299,6 +303,7 @@ def _shop_event_to_visit(event: dict, match_id: str, puuid: str, team_id: int) -
         "ts_start": event["ts"],
         "ts_end": event.get("ts_end") or event["ts"],
         "gold": event.get("gold"),
+        "gold_left": event.get("gold_left"),
         "level": event.get("level"),
         "cs": event.get("cs"),
         "kills": event.get("kills") or 0,

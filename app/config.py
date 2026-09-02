@@ -50,3 +50,9 @@ def patch_start_unix(patch: str) -> int:
     if start:
         return int(start.timestamp())
     return int((datetime.now(timezone.utc) - timedelta(days=16)).timestamp())
+
+
+def local_day_start_unix() -> int:
+    now = datetime.now().astimezone()
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(start.timestamp())

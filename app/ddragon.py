@@ -42,6 +42,11 @@ class DataDragon:
         champ = self._champ_by_id.get(champion_id)
         return champ["id"] if champ else str(champion_id)
 
+    def champion_info(self, champion_id: int) -> dict:
+        """Data Dragon 0-10 ratings (attack, magic, defense, difficulty)."""
+        champ = self._champ_by_id.get(champion_id) or {}
+        return champ.get("info") or {}
+
     def gold_block(self, item_id: int) -> dict:
         data = self.item(item_id) or {}
         gold = data.get("gold") or {}
