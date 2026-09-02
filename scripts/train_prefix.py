@@ -39,7 +39,7 @@ USE_HISTORY = os.environ.get("PREFIX_HISTORY") == "1"
 HIST_LEN = 12
 SEED = 16
 QUERY_DIM = 22
-BASKET_THRESHOLD = 0.5
+BASKET_THRESHOLD = 0.8  # swept 0.5-0.8 on the honest model: best F1/exact-set
 CACHE_VERSION = "v2"
 ROLES = {"TOP": 1, "JUNGLE": 2, "MIDDLE": 3, "BOTTOM": 4, "UTILITY": 5}
 # side ids: 0 pad, 1 ally, 2 enemy, 3 self, 4 lane opponent, 5 history token
@@ -202,6 +202,12 @@ class ShopDataset:
         self.label_index = label_index
         self.n_label = len(label_index)
         self.dragon = dragon
+        self._label_meta = []
+        for item_id, idx in label_index.items():
+            gold = dragon.gold_block(item_id)
+            base = gold["base"]
+            total = gold["total"] or base
+            self._label_meta.append((item_id, idx, base, total))
         n = len(rows)
         self.legal = torch.ones((n, self.n_label), dtype=torch.bool)
         self.champs = torch.zeros((n, BOARD), dtype=torch.int16)
@@ -327,8 +333,14 @@ class ShopDataset:
         self.budget[i] = gold
         self.inventories[i] = inventory
         allowed = gold + GOLD_DRIFT
-        for item_id, idx in self.label_index.items():
-            if combine_cost(item_id, inv_c, self.dragon) > allowed:
+        for item_id, idx, base, total in self._label_meta:
+            # cost is always in [base, total]: only the band in between needs the
+            # recursive combine walk, which keeps this loop fast.
+            if total <= allowed:
+                continue
+            if base > allowed:
+                self.legal[i, idx] = False
+            elif combine_cost(item_id, inv_c, self.dragon) > allowed:
                 self.legal[i, idx] = False
         for item_id in row.get("label_ids") or [row.get("label_id")]:
             idx = self.label_index.get(int(item_id or 0))

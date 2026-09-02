@@ -47,6 +47,15 @@ class DataDragon:
         champ = self._champ_by_id.get(champion_id) or {}
         return champ.get("info") or {}
 
+    def champion_id_by_name(self, name: str) -> int:
+        """Numeric id from a display name ('Lee Sin') or internal id ('LeeSin')."""
+        if not hasattr(self, "_champ_by_name"):
+            self._champ_by_name = {}
+            for key, champ in self._champ_by_id.items():
+                self._champ_by_name[champ["name"].lower()] = key
+                self._champ_by_name[champ["id"].lower()] = key
+        return self._champ_by_name.get((name or "").lower(), 0)
+
     def gold_block(self, item_id: int) -> dict:
         data = self.item(item_id) or {}
         gold = data.get("gold") or {}

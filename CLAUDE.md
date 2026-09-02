@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project goal
 
-Build an AI-powered recommender that, given a live game state at a shop visit (your champion, gold, inventory, all ten players' builds, score), suggests what a Challenger player would buy in that spot. "Optimal" deliberately means **imitation of high-elo behavior**, not counterfactual outcome optimization — the labels are what Challenger/GM/Master players actually bought. Current state: the offline data pipeline and model experiments exist; the live in-game inference path (Riot Live Client Data API + overlay) does not yet.
+Build an AI-powered recommender that, given a live game state at a shop visit (your champion, gold, inventory, all ten players' builds, score), suggests what a Challenger player would buy in that spot. "Optimal" deliberately means **imitation of high-elo behavior**, not counterfactual outcome optimization — the labels are what Challenger/GM/Master players actually bought. The live path exists: `app/live.py` polls the Riot Live Client Data API (`https://127.0.0.1:2999`, works in Practice Tool), `app/predictor.py` loads `prefix_model.pt` and reuses the training featurization (ShopDataset on a one-row list — never featurize live data any other way), and `/live` serves an auto-refreshing recommendation panel. Live gold is exact (better than the frame-stale training feature); other players' gold is unavailable live, those features zero out (measured neutral).
 
 ## Commands
 

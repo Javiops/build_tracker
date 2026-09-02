@@ -34,6 +34,55 @@ def index() -> FileResponse:
     return FileResponse(WEB_DIR / "index.html")
 
 
+@app.get("/live")
+def live_page() -> FileResponse:
+    return FileResponse(WEB_DIR / "live.html")
+
+
+_predictor = None
+
+
+def _get_predictor():
+    global _predictor
+    if _predictor is None:
+        from app.predictor import Predictor
+
+        _predictor = Predictor()
+    return _predictor
+
+
+@app.get("/api/live")
+def api_live() -> dict:
+    from app.live import fetch_snapshot, snapshot_to_row
+
+    try:
+        predictor = _get_predictor()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    snap = fetch_snapshot()
+    if not snap:
+        return {"in_game": False}
+    row = snapshot_to_row(snap, predictor.dragon)
+    if not row:
+        return {"in_game": False}
+    result = predictor.predict(row)
+    return {
+        "in_game": True,
+        "champion": row["champion"],
+        "role": row["role"],
+        "gold": row["gold"],
+        "level": row["level"],
+        "game_time_s": row["ts"] // 1000,
+        "inventory": [
+            {"item_id": i, "name": predictor.dragon.item_name(i)} for i in row["inventory"]
+        ],
+        "top": result["top"],
+        "basket": result["basket"],
+        "ddragon_version": predictor.dragon.version,
+        "model_trained_at": predictor.trained_at,
+    }
+
+
 @app.get("/api/status")
 def api_status(puuid: str | None = None) -> dict:
     data = summary(puuid)
