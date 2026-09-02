@@ -77,6 +77,29 @@ class Predictor:
             masked = torch.sigmoid(logits.masked_fill(~batch["legal"].to(self.device), -1e4))[0].cpu()
         return masked, raw
 
+    def _plan_probs(self, row: dict) -> torch.Tensor:
+        """Masked probs for a counterfactual 'when you can afford it' state:
+        same board and matchup, gold lifted into final-item range. Raw logits
+        for unaffordable finals are untrained (the loss masks them), so this
+        probe is the only training-consistent way to rank what the player is
+        building toward."""
+        from app.shop_econ import inventory_state
+
+        inventory = [int(i) for i in (row.get("inventory") or []) if i]
+        gold = max(float(row.get("gold") or 0), 3500.0)
+        state = inventory_state(inventory, gold, self.dragon)
+        probe = {
+            **row,
+            "gold": gold,
+            "can_complete": state["can_complete"],
+            "n_completable": state["n_completable"],
+            "cheapest_complete": state["cheapest_complete"],
+            "gold_after_complete": state["gold_after_complete"],
+            "n_inventory": state["n_inventory"],
+        }
+        masked, _raw = self._probs(probe)
+        return masked
+
     def predict(
         self,
         row: dict,
@@ -94,7 +117,7 @@ class Predictor:
 
         from app.shop_econ import GOLD_DRIFT, combine_cost, is_blocked
 
-        first_probs, raw_probs = self._probs(row)
+        first_probs, _ = self._probs(row)
         inventory = [int(i) for i in (row.get("inventory") or []) if i]
         gold = float(row.get("gold") or 0)
         start_budget = gold + (GOLD_DRIFT if budget_slack is None else budget_slack)
@@ -142,9 +165,10 @@ class Predictor:
 
         # "Building toward" arrows: for each non-final buy, the most probable
         # wanted final item whose recipe contains it.
+        plan = self._plan_probs(row)
         finals = []
         for fid, comps in self._final_components.items():
-            p = float(raw_probs[self.label_index[fid]])
+            p = float(plan[self.label_index[fid]])
             if p >= 0.15 and not is_blocked(fid, inventory, self.dragon):
                 finals.append((p, fid, comps))
         finals.sort(reverse=True)
