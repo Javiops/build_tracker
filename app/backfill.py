@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
+from app.config import DATA_DIR
 from app.db import db, init_db, insert_game, insert_perspectives, now_iso, set_meta, upsert_player
 from app.ddragon import DataDragon
 from app.ladder import _player_from_match, routing_for_match_id
@@ -54,13 +55,22 @@ def all_game_ids() -> list[str]:
         return [row["match_id"] for row in rows]
 
 
+REFRESH_DONE = DATA_DIR / "refresh_done.txt"
+
+
 def ingest_backfill(progress: Progress | None = None, refresh: bool = False) -> dict:
     """refresh=True re-fetches EVERY stored game so reconstruction changes
-    (e.g. save events) apply to the whole corpus, not just new ingests."""
+    (e.g. save events) apply to the whole corpus, not just new ingests.
+    Progress is checkpointed to data/refresh_done.txt so an expired API key or
+    interruption resumes instead of refetching from the start."""
     init_db()
     emit = progress or (lambda _event: None)
     todo = all_game_ids() if refresh else games_missing_full_lobby()
-    emit({"step": "list", "message": f"{len(todo)} games to re-reconstruct (refresh={refresh})"})
+    done: set[str] = set()
+    if refresh and REFRESH_DONE.exists():
+        done = set(REFRESH_DONE.read_text(encoding="utf-8").split())
+        todo = [m for m in todo if m not in done]
+    emit({"step": "list", "message": f"{len(todo)} games to re-reconstruct (refresh={refresh}, {len(done)} already done)"})
     client = RiotClient()
     dragon = DataDragon()
     filled = 0
@@ -71,6 +81,9 @@ def ingest_backfill(progress: Progress | None = None, refresh: bool = False) -> 
             try:
                 shoppers = _fill_match(client, dragon, match_id)
                 filled += 1
+                if refresh:
+                    with REFRESH_DONE.open("a", encoding="utf-8") as handle:
+                        handle.write(match_id + "\n")
                 emit(
                     {
                         "step": "stored",
