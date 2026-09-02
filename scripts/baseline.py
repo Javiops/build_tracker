@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 from app.config import DATA_DIR
 from app.db import db
 from app.ddragon import default_dragon
-from app.shop_econ import decision_kind, event_arrival_gold, inventory_state, leftover_gold
+from app.shop_econ import GOLD_DRIFT, decision_kind, inventory_state, leftover_gold
 
 SEED = 16
 TRAIN_FRAC = 0.8
@@ -83,9 +83,12 @@ def _example(event: dict, dragon) -> dict | None:
     if not label:
         return None
     label_id, label_name, label_completed = label
+    # Pre-visit frame gold: snapshotted BEFORE the buys, so it cannot leak the
+    # label. It understates arrival by up to ~60s of income, hence GOLD_DRIFT
+    # in the affordability features.
     inventory = _item_ids(event.get("inventory_before") or [])
-    gold = event_arrival_gold(event, dragon)
-    state = inventory_state(inventory, gold, dragon)
+    gold = leftover_gold(event)
+    state = inventory_state(inventory, gold + GOLD_DRIFT, dragon)
     team = event.get("team_id")
     self_row = next((p for p in event.get("board") or [] if p.get("is_self")), None) or {}
     score = event.get("score") or {}

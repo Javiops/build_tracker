@@ -7,6 +7,9 @@ from collections import Counter
 from app.ddragon import DataDragon
 
 PINK = {2055, 772043}
+# Timeline frames snapshot gold up to 60s BEFORE a shop visit, so the honest
+# budget is that pre-visit gold plus what a player can earn before buying.
+GOLD_DRIFT = 500
 
 
 def payload_ids(items: list | None) -> list[int]:
@@ -45,6 +48,33 @@ def damage_profile(items: list | None, dragon: DataDragon) -> dict:
     return out
 
 
+def combine_cost(item_id: int, owned: Counter, dragon: DataDragon, consume: bool = False) -> int:
+    """Gold to buy item_id given owned components, mirroring the in-game combine
+    discount recursively (partial component ownership included). `owned` is left
+    unchanged unless consume=True, in which case used components are removed."""
+    taken: list[int] = []
+
+    def rec(iid: int) -> int:
+        from_ids = dragon.from_ids(iid)
+        gold = dragon.gold_block(iid)
+        if not from_ids:
+            return gold["total"] or gold["base"]
+        cost = gold["base"]
+        for comp in from_ids:
+            if owned[comp] > 0:
+                owned[comp] -= 1
+                taken.append(comp)
+            else:
+                cost += rec(comp)
+        return cost
+
+    cost = rec(item_id)
+    if not consume:
+        for comp in taken:
+            owned[comp] += 1
+    return cost
+
+
 def net_spent(
     before: list | None,
     bought: list | None,
@@ -59,14 +89,7 @@ def net_spent(
         return int(dragon.classify(item_id).get("depth") or 0)
 
     for item_id in sorted(bought_ids, key=depth, reverse=True):
-        from_ids = dragon.from_ids(item_id)
-        from_c = Counter(from_ids)
-        gold = dragon.gold_block(item_id)
-        if from_ids and from_c <= consumed_c:
-            spent += gold["base"]
-            consumed_c -= from_c
-        else:
-            spent += gold["total"] or gold["base"]
+        spent += combine_cost(item_id, consumed_c, dragon, consume=True)
     gained = 0
     for item_id, count in consumed_c.items():
         gained += dragon.gold_block(item_id)["sell"] * count
@@ -97,11 +120,7 @@ def event_arrival_gold(event: dict, dragon: DataDragon) -> int:
 
 
 def buy_cost(item_id: int, inventory: list[int], dragon: DataDragon) -> int:
-    from_ids = dragon.from_ids(item_id)
-    gold = dragon.gold_block(item_id)
-    if from_ids and Counter(from_ids) <= Counter(int(i) for i in inventory if i):
-        return gold["base"]
-    return gold["total"] or gold["base"]
+    return combine_cost(item_id, Counter(int(i) for i in inventory if i), dragon)
 
 
 def inventory_state(inventory: list[int], gold: int, dragon: DataDragon) -> dict:

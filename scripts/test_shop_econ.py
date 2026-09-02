@@ -3,10 +3,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from collections import Counter
+
 from app.ddragon import DataDragon
 from app.shop_econ import (
     arrival_from_parts,
     buy_cost,
+    combine_cost,
     decision_kind,
     inventory_state,
     net_spent,
@@ -36,5 +39,20 @@ assert buy_cost(4646, [], dragon) == 2800
 assert decision_kind([4646], [3145, 3113], dragon) == "complete"
 assert decision_kind([1036], [], dragon) == "start"
 assert decision_kind([2055], [1038], dragon) == "save"
+
+# Partial components: own Alternator only, buy Stormsurge. In-game cost is
+# total minus Alternator's value, not the full price.
+storm_total = dragon.gold_block(4646)["total"]
+alt_total = dragon.gold_block(3145)["total"]
+owned = Counter([3145])
+assert combine_cost(4646, owned, dragon) == storm_total - alt_total
+assert owned[3145] == 1, "non-consuming call must not mutate owned"
+assert buy_cost(4646, [3145], dragon) == storm_total - alt_total
+# net_spent with partial ownership: Alternator destroyed on combine, wisp paid.
+spent = net_spent([3145], [4646], [3145], dragon)
+assert spent == storm_total - alt_total, spent
+# consume=True removes used components
+combine_cost(4646, owned, dragon, consume=True)
+assert owned[3145] == 0
 
 print("ok shop_econ")

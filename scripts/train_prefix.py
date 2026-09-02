@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -12,7 +13,6 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
 
 from app.config import DATA_DIR
 from app.ddragon import default_dragon
-from app.shop_econ import damage_profile
+from app.shop_econ import GOLD_DRIFT, combine_cost, damage_profile
 
 ML_DIR = DATA_DIR / "ml"
 MAX_OTHERS = 9
@@ -29,20 +29,27 @@ MAX_ITEMS = 6
 D_MODEL = 64
 BATCH = 256
 # Experiment knobs (env): PREFIX_EPOCHS, PREFIX_COSINE=1, PREFIX_EXTRAS=0 to
-# zero out the game-state/damage-profile features while keeping QUERY_DIM fixed.
+# zero out the game-state/damage-profile features while keeping QUERY_DIM fixed,
+# PREFIX_HISTORY=1 to feed the player's prior purchases as extra tokens,
+# PREFIX_OUT to name the saved model file.
 EPOCHS = int(os.environ.get("PREFIX_EPOCHS", "4"))
 USE_COSINE = os.environ.get("PREFIX_COSINE") == "1"
 USE_EXTRAS = os.environ.get("PREFIX_EXTRAS", "1") != "0"
+USE_HISTORY = os.environ.get("PREFIX_HISTORY") == "1"
+HIST_LEN = 12
 SEED = 16
 QUERY_DIM = 22
+BASKET_THRESHOLD = 0.5
+CACHE_VERSION = "v2"
 ROLES = {"TOP": 1, "JUNGLE": 2, "MIDDLE": 3, "BOTTOM": 4, "UTILITY": 5}
-# side ids: 0 pad, 1 ally, 2 enemy, 3 self, 4 lane opponent (enemy, same role)
-SIDE_ALLY, SIDE_ENEMY, SIDE_SELF, SIDE_LANE_OPP = 1, 2, 3, 4
+# side ids: 0 pad, 1 ally, 2 enemy, 3 self, 4 lane opponent, 5 history token
+SIDE_ALLY, SIDE_ENEMY, SIDE_SELF, SIDE_LANE_OPP, SIDE_HISTORY = 1, 2, 3, 4, 5
 
 
 def load_jsonl(path: Path) -> list[dict]:
     rows = []
     keep = (
+        "match_id",
         "champion",
         "champion_id",
         "role",
@@ -94,6 +101,18 @@ def load_jsonl(path: Path) -> list[dict]:
     return rows
 
 
+def attach_history(rows: list[dict]) -> None:
+    """Prior purchases of the same player in the same game, oldest first.
+
+    Rows are exported in chronological order per match, so a single pass works.
+    """
+    seen: dict[tuple, list[int]] = {}
+    for row in rows:
+        hist = seen.setdefault((row.get("match_id"), row.get("champion_id")), [])
+        row["prefix_items"] = list(hist[-HIST_LEN:])
+        hist.extend(row.get("label_ids") or [])
+
+
 def score_guesses(rows: list[dict], guesses: list[list[int]]) -> tuple[float, float]:
     hits1 = hits3 = 0
     for row, guess in zip(rows, guesses):
@@ -140,12 +159,36 @@ def baseline_guesses(train: list[dict], test: list[dict]) -> list[list[int]]:
     return out
 
 
+def _cache_path(split: str, source: Path) -> Path:
+    stat = source.stat()
+    key = (
+        f"{source.name}:{stat.st_size}:{int(stat.st_mtime)}:{QUERY_DIM}:{HIST_LEN}:"
+        f"{int(USE_EXTRAS)}:{int(USE_HISTORY)}:{GOLD_DRIFT}:{CACHE_VERSION}"
+    )
+    return ML_DIR / f"tensors_{split}_{hashlib.md5(key.encode()).hexdigest()[:12]}.pt"
+
+
+def _dataset(split: str, source: Path, rows, champ_index, item_index, label_index, dragon):
+    cache = _cache_path(split, source)
+    if cache.exists():
+        print(f"loaded cached tensors {cache.name}", flush=True)
+        return ShopDataset.from_cache(cache, champ_index, item_index, label_index, dragon)
+    ds = ShopDataset(rows, champ_index, item_index, label_index, dragon)
+    for old in ML_DIR.glob(f"tensors_{split}_*.pt"):
+        if old != cache:
+            old.unlink()
+    ds.save_cache(cache)
+    return ds
+
+
 def _index_map(values: list[int]) -> dict[int, int]:
     unique = sorted({int(v) for v in values if v})
     return {item_id: i + 1 for i, item_id in enumerate(unique)}
 
 
-class ShopDataset(Dataset):
+class ShopDataset:
+    """Precomputes every tensor once so training is GPU-bound, not Python-bound."""
+
     def __init__(
         self,
         rows: list[dict],
@@ -154,37 +197,76 @@ class ShopDataset(Dataset):
         label_index: dict[int, int],
         dragon,
     ):
-        self.rows = rows
         self.champ_index = champ_index
         self.item_index = item_index
         self.label_index = label_index
         self.n_label = len(label_index)
         self.dragon = dragon
-        self._cost_meta = []
-        for item_id, idx in label_index.items():
-            from_ids = dragon.from_ids(item_id)
-            gold = dragon.gold_block(item_id)
-            self._cost_meta.append(
-                (
-                    idx,
-                    Counter(from_ids) if from_ids else None,
-                    gold["base"],
-                    gold["total"] or gold["base"],
-                )
-            )
-        self.legal = torch.ones((len(rows), self.n_label), dtype=torch.bool)
+        n = len(rows)
+        self.legal = torch.ones((n, self.n_label), dtype=torch.bool)
+        self.champs = torch.zeros((n, BOARD), dtype=torch.int16)
+        self.sides = torch.zeros((n, BOARD), dtype=torch.int8)
+        self.items = torch.zeros((n, BOARD, MAX_ITEMS), dtype=torch.int16)
+        self.hist = torch.zeros((n, HIST_LEN), dtype=torch.int16)
+        self.query = torch.zeros((n, QUERY_DIM), dtype=torch.float32)
+        self.inv = torch.zeros((n, len(item_index) + 1), dtype=torch.uint8)
+        self.targets = torch.zeros((n, self.n_label), dtype=torch.uint8)
+        self.budget = torch.zeros(n, dtype=torch.float32)
+        self.inventories: list[list[int]] = [[] for _ in range(n)]
         for i, row in enumerate(rows):
-            gold = float(row.get("gold") or 0)
-            inv_c = Counter(int(item_id) for item_id in (row.get("inventory") or []) if item_id)
-            for idx, from_c, base, total in self._cost_meta:
-                cost = base if from_c is not None and from_c <= inv_c else total
-                if cost > gold:
-                    self.legal[i, idx] = False
-            for item_id in row.get("label_ids") or [row.get("label_id")]:
-                idx = label_index.get(int(item_id or 0))
-                if idx is not None:
-                    self.legal[i, idx] = True
-        self._extras = [self._context_extras(row) for row in rows]
+            self._fill_row(i, row)
+
+    TENSOR_ATTRS = (
+        "legal",
+        "champs",
+        "sides",
+        "items",
+        "hist",
+        "query",
+        "inv",
+        "targets",
+        "budget",
+        "inventories",
+    )
+
+    def save_cache(self, path: Path) -> None:
+        torch.save({name: getattr(self, name) for name in self.TENSOR_ATTRS}, path)
+
+    @classmethod
+    def from_cache(
+        cls,
+        path: Path,
+        champ_index: dict[int, int],
+        item_index: dict[int, int],
+        label_index: dict[int, int],
+        dragon,
+    ) -> "ShopDataset":
+        ds = cls.__new__(cls)
+        ds.champ_index = champ_index
+        ds.item_index = item_index
+        ds.label_index = label_index
+        ds.n_label = len(label_index)
+        ds.dragon = dragon
+        blob = torch.load(path, map_location="cpu", weights_only=False)
+        for name in cls.TENSOR_ATTRS:
+            setattr(ds, name, blob[name])
+        return ds
+
+    def batches(self, batch_size: int, shuffle: bool):
+        n = self.champs.size(0)
+        order = torch.randperm(n) if shuffle else torch.arange(n)
+        for s in range(0, n, batch_size):
+            idx = order[s : s + batch_size]
+            yield {
+                "champs": self.champs[idx].long(),
+                "sides": self.sides[idx].long(),
+                "items": self.items[idx].long(),
+                "hist": self.hist[idx].long(),
+                "query": self.query[idx],
+                "inv": self.inv[idx].float(),
+                "legal": self.legal[idx],
+                "targets": self.targets[idx].float(),
+            }
 
     def _context_extras(self, row: dict) -> dict:
         team = row.get("team_id")
@@ -237,35 +319,47 @@ class ShopDataset(Dataset):
             ),
         }
 
-    def __len__(self) -> int:
-        return len(self.rows)
-
-    def __getitem__(self, i: int) -> dict[str, torch.Tensor]:
-        row = self.rows[i]
+    def _fill_row(self, i: int, row: dict) -> None:
         team = row.get("team_id")
-        ex = self._extras[i]
-        opp_pos = ex["opp_pos"]
-        champs = torch.zeros(BOARD, dtype=torch.long)
-        sides = torch.zeros(BOARD, dtype=torch.long)
-        item_slots = torch.zeros(BOARD, MAX_ITEMS, dtype=torch.long)
+        gold = float(row.get("gold") or 0)
         inventory = [int(item_id) for item_id in (row.get("inventory") or []) if item_id]
-        champs[0] = self.champ_index.get(int(row.get("champion_id") or 0), 0)
-        sides[0] = SIDE_SELF
+        inv_c = Counter(inventory)
+        self.budget[i] = gold
+        self.inventories[i] = inventory
+        allowed = gold + GOLD_DRIFT
+        for item_id, idx in self.label_index.items():
+            if combine_cost(item_id, inv_c, self.dragon) > allowed:
+                self.legal[i, idx] = False
+        for item_id in row.get("label_ids") or [row.get("label_id")]:
+            idx = self.label_index.get(int(item_id or 0))
+            if idx is not None:
+                self.legal[i, idx] = True
+
+        ex = self._context_extras(row)
+        opp_pos = ex["opp_pos"]
+        self.champs[i, 0] = self.champ_index.get(int(row.get("champion_id") or 0), 0)
+        self.sides[i, 0] = SIDE_SELF
         for j, item_id in enumerate(inventory[:MAX_ITEMS]):
-            item_slots[0, j] = self.item_index.get(item_id, 0)
+            self.items[i, 0, j] = self.item_index.get(item_id, 0)
         others = (row.get("others") or [])[:MAX_OTHERS]
         for pos, player in enumerate(others):
             slot = pos + 1
-            champs[slot] = self.champ_index.get(int(player.get("champion_id") or 0), 0)
-            if champs[slot] == 0:
-                champs[slot] = self.champ_index.get(hash(player.get("champion") or "") % 100000, 0)
+            champ = self.champ_index.get(int(player.get("champion_id") or 0), 0)
+            if champ == 0:
+                champ = self.champ_index.get(hash(player.get("champion") or "") % 100000, 0)
+            self.champs[i, slot] = champ
             if player.get("team_id") == team:
-                sides[slot] = SIDE_ALLY
+                self.sides[i, slot] = SIDE_ALLY
             else:
-                sides[slot] = SIDE_LANE_OPP if pos == opp_pos else SIDE_ENEMY
+                self.sides[i, slot] = SIDE_LANE_OPP if pos == opp_pos else SIDE_ENEMY
             for j, item_id in enumerate((player.get("items") or [])[:MAX_ITEMS]):
-                item_slots[slot, j] = self.item_index.get(int(item_id), 0)
-        gold = float(row.get("gold") or 0)
+                self.items[i, slot, j] = self.item_index.get(int(item_id), 0)
+
+        if USE_HISTORY:
+            prefix = (row.get("prefix_items") or [])[-HIST_LEN:]
+            for j, item_id in enumerate(prefix):
+                self.hist[i, j] = self.item_index.get(int(item_id), 0)
+
         ally_obj = row.get("ally_obj") or {}
         enemy_obj = row.get("enemy_obj") or {}
         if USE_EXTRAS:
@@ -280,7 +374,7 @@ class ShopDataset(Dataset):
             ]
         else:
             extras = [0.0] * 7
-        query = torch.tensor(
+        self.query[i] = torch.tensor(
             [
                 float(ROLES.get(row.get("role") or "", 0)),
                 gold / 3000.0,
@@ -301,28 +395,18 @@ class ShopDataset(Dataset):
             ],
             dtype=torch.float32,
         )
-        inv = torch.zeros(len(self.item_index) + 1, dtype=torch.float32)
         for item_id in inventory:
             idx = self.item_index.get(item_id)
             if idx:
-                inv[idx] = min(inv[idx] + 1.0, 3.0)
-        targets = torch.zeros(self.n_label, dtype=torch.float32)
+                self.inv[i, idx] = min(int(self.inv[i, idx]) + 1, 3)
+        hit = False
         for item_id in row.get("label_ids") or []:
             idx = self.label_index.get(int(item_id))
             if idx is not None:
-                targets[idx] = 1.0
-        if float(targets.sum()) == 0:
-            idx = self.label_index.get(int(row.get("label_id") or 0), 0)
-            targets[idx] = 1.0
-        return {
-            "champs": champs,
-            "sides": sides,
-            "items": item_slots,
-            "query": query,
-            "inv": inv,
-            "legal": self.legal[i],
-            "targets": targets,
-        }
+                self.targets[i, idx] = 1
+                hit = True
+        if not hit:
+            self.targets[i, self.label_index.get(int(row.get("label_id") or 0), 0)] = 1
 
 
 class PrefixModel(nn.Module):
@@ -330,7 +414,8 @@ class PrefixModel(nn.Module):
         super().__init__()
         self.champ_emb = nn.Embedding(n_champ + 1, D_MODEL, padding_idx=0)
         self.item_emb = nn.Embedding(n_item + 1, D_MODEL, padding_idx=0)
-        self.side_emb = nn.Embedding(5, D_MODEL, padding_idx=0)
+        self.side_emb = nn.Embedding(6, D_MODEL, padding_idx=0)
+        self.hist_pos = nn.Embedding(HIST_LEN, D_MODEL)
         self.item_mix = nn.Sequential(
             nn.Linear(MAX_ITEMS * D_MODEL, D_MODEL),
             nn.ReLU(),
@@ -351,31 +436,35 @@ class PrefixModel(nn.Module):
         )
         self.head = nn.Linear(D_MODEL, n_label)
 
-    def forward(self, champs, sides, items, query, inv):
+    def forward(self, champs, sides, items, query, inv, hist):
         item_e = self.item_emb(items)
         empty = items == 0
         item_e = item_e.masked_fill(empty.unsqueeze(-1), 0)
         piled = self.item_mix(item_e.flatten(2))
         board = self.champ_emb(champs) + self.side_emb(sides) + piled
         q = self.query_proj(torch.cat([query, inv], dim=1)).unsqueeze(1)
-        seq = torch.cat([q, board], dim=1)
-        pad = sides == 0
-        key_pad = torch.cat([torch.zeros(sides.size(0), 1, dtype=torch.bool, device=sides.device), pad], dim=1)
+        positions = torch.arange(HIST_LEN, device=hist.device).unsqueeze(0)
+        hist_side = torch.full_like(hist, SIDE_HISTORY)
+        hist_tok = self.item_emb(hist) + self.side_emb(hist_side) + self.hist_pos(positions)
+        seq = torch.cat([q, board, hist_tok], dim=1)
+        never = torch.zeros(sides.size(0), 1, dtype=torch.bool, device=sides.device)
+        key_pad = torch.cat([never, sides == 0, hist == 0], dim=1)
         encoded = self.encoder(seq, src_key_padding_mask=key_pad)
         return self.head(encoded[:, 0])
 
 
-def predict_top3(model, loader, device, labels: list[int]) -> list[list[int]]:
+def predict_top3(model, dataset: ShopDataset, device, labels: list[int]) -> list[list[int]]:
     model.eval()
     guesses: list[list[int]] = []
     with torch.no_grad():
-        for batch in loader:
+        for batch in dataset.batches(BATCH, shuffle=False):
             logits = model(
                 batch["champs"].to(device),
                 batch["sides"].to(device),
                 batch["items"].to(device),
                 batch["query"].to(device),
                 batch["inv"].to(device),
+                batch["hist"].to(device),
             )
             legal = batch["legal"].to(device)
             logits = logits.masked_fill(~legal, -1e4)
@@ -383,6 +472,77 @@ def predict_top3(model, loader, device, labels: list[int]) -> list[list[int]]:
             for idxs in top:
                 guesses.append([labels[i] for i in idxs])
     return guesses
+
+
+def predict_baskets(
+    model,
+    dataset: ShopDataset,
+    device,
+    labels: list[int],
+    dragon,
+    threshold: float = 0.5,
+    max_items: int = 5,
+) -> list[list[int]]:
+    """Variable-size basket: greedily take confident items while the gold lasts,
+    pricing each pick with the recipe-aware combine cost given the inventory."""
+    model.eval()
+    baskets: list[list[int]] = []
+    r = 0
+    with torch.no_grad():
+        for batch in dataset.batches(BATCH, shuffle=False):
+            logits = model(
+                batch["champs"].to(device),
+                batch["sides"].to(device),
+                batch["items"].to(device),
+                batch["query"].to(device),
+                batch["inv"].to(device),
+                batch["hist"].to(device),
+            )
+            logits = logits.masked_fill(~batch["legal"].to(device), -1e4)
+            probs = torch.sigmoid(logits).cpu()
+            for b in range(probs.size(0)):
+                row_p = probs[b]
+                budget = float(dataset.budget[r]) + GOLD_DRIFT
+                inv_c = Counter(dataset.inventories[r])
+                basket: list[int] = []
+                for idx in torch.argsort(row_p, descending=True).tolist():
+                    if float(row_p[idx]) < threshold or len(basket) >= max_items:
+                        break
+                    item_id = labels[idx]
+                    cost = combine_cost(item_id, inv_c, dragon)
+                    if cost > budget:
+                        continue
+                    combine_cost(item_id, inv_c, dragon, consume=True)
+                    inv_c[item_id] += 1
+                    budget -= cost
+                    basket.append(item_id)
+                baskets.append(basket)
+                r += 1
+    return baskets
+
+
+def score_pred_baskets(rows: list[dict], baskets: list[list[int]], threshold: float) -> None:
+    prec = rec = exact = 0.0
+    pred_sizes = actual_sizes = 0
+    n = 0
+    for row, basket in zip(rows, baskets):
+        actual = {int(i) for i in (row.get("label_ids") or [row["label_id"]]) if i}
+        pred = set(basket)
+        if not actual:
+            continue
+        n += 1
+        hit = len(actual & pred)
+        rec += hit / len(actual)
+        prec += hit / len(pred) if pred else 0.0
+        exact += float(pred == actual)
+        pred_sizes += len(pred)
+        actual_sizes += len(actual)
+    n = n or 1
+    print(f"  predicted basket  (variable size, threshold {threshold}, budget-constrained)")
+    print(f"    recall    {rec / n:.2f}   of their buys are in our basket")
+    print(f"    precision {prec / n:.2f}   of our basket was actually bought")
+    print(f"    exact set {exact / n:.2f}   basket matches exactly")
+    print(f"    avg size  {pred_sizes / n:.2f} predicted vs {actual_sizes / n:.2f} actual")
 
 
 def per_decision(test: list[dict], guesses: list[list[int]]) -> None:
@@ -428,6 +588,8 @@ def main() -> None:
     print(f"loaded train {len(train)}", flush=True)
     test = load_jsonl(test_path)
     print(f"train {len(train)} shops  test {len(test)} shops", flush=True)
+    attach_history(train)
+    attach_history(test)
 
     base = baseline_guesses(train, test)
     b1, b3 = score_guesses(test, base)
@@ -475,13 +637,14 @@ def main() -> None:
     print(flush=True)
     print(
         f"Board model  basket (all buys)  9 others x {MAX_ITEMS} slots  device={device}  "
-        f"epochs={EPOCHS} extras={'on' if USE_EXTRAS else 'off'} cosine={'on' if USE_COSINE else 'off'}",
+        f"epochs={EPOCHS} extras={'on' if USE_EXTRAS else 'off'} cosine={'on' if USE_COSINE else 'off'} "
+        f"history={'on' if USE_HISTORY else 'off'}",
         flush=True,
     )
-    train_ds = ShopDataset(train, champ_index, item_index, label_index, dragon)
-    test_ds = ShopDataset(test, champ_index, item_index, label_index, dragon)
-    train_loader = DataLoader(train_ds, batch_size=BATCH, shuffle=True)
-    test_loader = DataLoader(test_ds, batch_size=BATCH, shuffle=False)
+    prep_started = time.monotonic()
+    train_ds = _dataset("train", train_path, train, champ_index, item_index, label_index, dragon)
+    test_ds = _dataset("test", test_path, test, champ_index, item_index, label_index, dragon)
+    print(f"tensors ready in {time.monotonic() - prep_started:.1f}s", flush=True)
 
     model = PrefixModel(len(champ_index), len(item_index), len(label_ids), len(item_index) + 1).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -492,7 +655,7 @@ def main() -> None:
         model.train()
         total = 0.0
         n = 0
-        for batch in train_loader:
+        for batch in train_ds.batches(BATCH, shuffle=True):
             opt.zero_grad()
             logits = model(
                 batch["champs"].to(device),
@@ -500,6 +663,7 @@ def main() -> None:
                 batch["items"].to(device),
                 batch["query"].to(device),
                 batch["inv"].to(device),
+                batch["hist"].to(device),
             )
             logits = logits.masked_fill(~batch["legal"].to(device), -1e4)
             loss = loss_fn(logits, batch["targets"].to(device))
@@ -512,7 +676,7 @@ def main() -> None:
         print(f"  epoch {epoch}/{EPOCHS}  loss {total / max(n, 1):.3f}", flush=True)
     print(f"trained in {time.monotonic() - started:.1f}s", flush=True)
 
-    guesses = predict_top3(model, test_loader, device, label_ids)
+    guesses = predict_top3(model, test_ds, device, label_ids)
     m1, m3 = score_guesses(test, guesses)
     print(flush=True)
     print("board model  (gold + your inventory + lobby builds + full shop basket)", flush=True)
@@ -524,6 +688,9 @@ def main() -> None:
     per_decision(test, guesses)
     print(flush=True)
     per_champ(test, guesses)
+    print(flush=True)
+    baskets = predict_baskets(model, test_ds, device, label_ids, dragon, threshold=BASKET_THRESHOLD)
+    score_pred_baskets(test, baskets, BASKET_THRESHOLD)
 
     out_path = ML_DIR / os.environ.get("PREFIX_OUT", "prefix_model.pt")
     torch.save(
@@ -540,6 +707,10 @@ def main() -> None:
                 "epochs": EPOCHS,
                 "extras": USE_EXTRAS,
                 "cosine": USE_COSINE,
+                "history": USE_HISTORY,
+                "hist_len": HIST_LEN,
+                "gold_drift": GOLD_DRIFT,
+                "basket_threshold": BASKET_THRESHOLD,
             },
             "metrics": {"top1": m1, "top3": m3, "baseline_top1": b1, "baseline_top3": b3},
             "trained_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
