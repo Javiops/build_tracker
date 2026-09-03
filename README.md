@@ -20,7 +20,7 @@ winget install Git.Git
 winget install Microsoft.VCRedist.2015+.x64
 ```
 
-(The last one is required by PyTorch — without it the server crashes with `Error loading c10.dll` / `WinError 1114`.)
+(The last one is required by PyTorch — without it the server crashes with `Error loading c10.dll` / `WinError 1114`. If winget hangs on it, install it directly from Microsoft instead: https://aka.ms/vs/17/release/vc_redist.x64.exe)
 
 then close and reopen PowerShell. (No winget? Get Python from [python.org/downloads](https://www.python.org/downloads/) — in the installer, tick **"Add python.exe to PATH"** — and Git from [git-scm.com](https://git-scm.com/download/win).)
 
