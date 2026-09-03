@@ -26,6 +26,11 @@ class DataDragon:
             int(c["key"]): c for c in self._champions.get("data", {}).values()
         }
         self._combine_recipes: list[tuple[int, tuple[int, ...], int]] | None = None
+        # Static data: memoize the hot accessors — the ML mask calls them
+        # hundreds of millions of times per export.
+        self._gold_cache: dict[int, dict] = {}
+        self._from_cache: dict[int, list[int]] = {}
+        self._classify_cache: dict[int, dict] = {}
 
     def item(self, item_id: int) -> dict | None:
         return self._items.get("data", {}).get(str(item_id))
@@ -62,18 +67,26 @@ class DataDragon:
         return self._champ_by_name.get((name or "").lower(), 0)
 
     def gold_block(self, item_id: int) -> dict:
-        data = self.item(item_id) or {}
-        gold = data.get("gold") or {}
-        return {
-            "base": int(gold.get("base") or 0),
-            "total": int(gold.get("total") or gold.get("base") or 0),
-            "sell": int(gold.get("sell") or 0),
-            "purchasable": bool(gold.get("purchasable", True)),
-        }
+        cached = self._gold_cache.get(item_id)
+        if cached is None:
+            data = self.item(item_id) or {}
+            gold = data.get("gold") or {}
+            cached = {
+                "base": int(gold.get("base") or 0),
+                "total": int(gold.get("total") or gold.get("base") or 0),
+                "sell": int(gold.get("sell") or 0),
+                "purchasable": bool(gold.get("purchasable", True)),
+            }
+            self._gold_cache[item_id] = cached
+        return cached
 
     def from_ids(self, item_id: int) -> list[int]:
-        data = self.item(item_id) or {}
-        return [int(x) for x in (data.get("from") or []) if int(x)]
+        cached = self._from_cache.get(item_id)
+        if cached is None:
+            data = self.item(item_id) or {}
+            cached = [int(x) for x in (data.get("from") or []) if int(x)]
+            self._from_cache[item_id] = cached
+        return cached
 
     def combine_recipes(self) -> list[tuple[int, tuple[int, ...], int]]:
         if self._combine_recipes is None:
@@ -93,6 +106,9 @@ class DataDragon:
         return self._combine_recipes
 
     def classify(self, item_id: int) -> dict:
+        cached = self._classify_cache.get(item_id)
+        if cached is not None:
+            return cached
         data = self.item(item_id) or {}
         tags = set(data.get("tags") or [])
         depth = data.get("depth") or 0
@@ -120,7 +136,7 @@ class DataDragon:
                 and (gold == 0 or purchasable is False)
             )
         )
-        return {
+        cached = {
             "name": data.get("name") or f"Item {item_id}",
             "tags": sorted(tags),
             "depth": depth,
@@ -132,6 +148,8 @@ class DataDragon:
             "is_component": is_component,
             "skip": skip,
         }
+        self._classify_cache[item_id] = cached
+        return cached
 
 
 def latest_version() -> str:

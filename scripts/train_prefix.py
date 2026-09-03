@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
 
 from app.config import DATA_DIR
 from app.ddragon import default_dragon
-from app.shop_econ import GOLD_DRIFT, combine_cost, damage_profile, is_blocked
+from app.shop_econ import GOLD_DRIFT, combine_cost, damage_profile
 
 ML_DIR = DATA_DIR / "ml"
 MAX_OTHERS = 9
@@ -202,12 +202,28 @@ class ShopDataset:
         self.label_index = label_index
         self.n_label = len(label_index)
         self.dragon = dragon
+        # Per-label metadata hoisted out of the row loop: prices plus the
+        # purchase-block facts (completed flag, boots component set). The fill
+        # loop must never call classify/is_blocked per row x label — that is
+        # ~200M calls over a full export.
+        from app.shop_econ import components_of
+
         self._label_meta = []
+        self._boots_ids: set[int] = set()
         for item_id, idx in label_index.items():
             gold = dragon.gold_block(item_id)
             base = gold["base"]
             total = gold["total"] or base
-            self._label_meta.append((item_id, idx, base, total))
+            cls = dragon.classify(item_id)
+            is_completed = bool(cls.get("is_completed"))
+            boots_comps = None
+            if "Boots" in (cls.get("tags") or []):
+                boots_comps = components_of(item_id, dragon)
+                self._boots_ids.add(item_id)
+            self._label_meta.append((item_id, idx, base, total, is_completed, boots_comps))
+        for item_id in item_index:
+            if "Boots" in ((dragon.item(item_id) or {}).get("tags") or []):
+                self._boots_ids.add(item_id)
         n = len(rows)
         self.legal = torch.ones((n, self.n_label), dtype=torch.bool)
         self.champs = torch.zeros((n, BOARD), dtype=torch.int16)
@@ -339,15 +355,21 @@ class ShopDataset:
         gold = float(row.get("gold") or 0)
         inventory = [int(item_id) for item_id in (row.get("inventory") or []) if item_id]
         inv_c = Counter(inventory)
+        inv_set = set(inventory)
+        owned_boots = [b for b in inventory if b in self._boots_ids]
         self.budget[i] = gold
         self.inventories[i] = inventory
         allowed = gold + GOLD_DRIFT
-        for item_id, idx, base, total in self._label_meta:
-            # cost is always in [base, total]: only the band in between needs the
-            # recursive combine walk, which keeps this loop fast.
-            if is_blocked(item_id, inventory, self.dragon):
+        for item_id, idx, base, total, is_completed, boots_comps in self._label_meta:
+            # purchase blocks from precomputed metadata — no per-row classify
+            if is_completed and item_id in inv_set:
                 self.legal[i, idx] = False
                 continue
+            if boots_comps is not None and any(b not in boots_comps for b in owned_boots):
+                self.legal[i, idx] = False
+                continue
+            # cost is always in [base, total]: only the band in between needs the
+            # recursive combine walk, which keeps this loop fast.
             if total <= allowed:
                 continue
             if base > allowed:
