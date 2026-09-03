@@ -12,6 +12,17 @@ It shows **Optimal buys** (always affordable with your current gold, each with a
 
 Requirements: Python 3.12+, ~3GB disk for PyTorch. Works alongside the live game — it only reads the [Live Client Data API](https://developer.riotgames.com/docs/lol#game-client-api) that the League client serves locally (the same one Blitz/Porofessor use; no memory reading, ToS-safe).
 
+**Step 0 — install Python and Git** (skip anything you already have). Open PowerShell and run:
+
+```powershell
+winget install Python.Python.3.12
+winget install Git.Git
+```
+
+then close and reopen PowerShell. (No winget? Get Python from [python.org/downloads](https://www.python.org/downloads/) — in the installer, tick **"Add python.exe to PATH"** — and Git from [git-scm.com](https://git-scm.com/download/win).)
+
+**Step 1 — get the app:**
+
 ```powershell
 git clone https://github.com/Javiops/build_tracker.git
 cd build_tracker
@@ -19,7 +30,9 @@ python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 ```
 
-Download `prefix_model.pt` from the [latest release](https://github.com/Javiops/build_tracker/releases) and put it in `data\ml\`. Then:
+**Step 2 —** download `prefix_model.pt` from the [latest release](https://github.com/Javiops/build_tracker/releases) and put it in the repo's `data\ml\` folder (create it if needed).
+
+**Step 3 — run it:**
 
 ```powershell
 .venv\Scripts\python.exe -m uvicorn app.main:app
