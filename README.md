@@ -17,7 +17,10 @@ Requirements: Python 3.12+, ~3GB disk for PyTorch. Works alongside the live game
 ```powershell
 winget install Python.Python.3.12
 winget install Git.Git
+winget install Microsoft.VCRedist.2015+.x64
 ```
+
+(The last one is required by PyTorch — without it the server crashes with `Error loading c10.dll` / `WinError 1114`.)
 
 then close and reopen PowerShell. (No winget? Get Python from [python.org/downloads](https://www.python.org/downloads/) — in the installer, tick **"Add python.exe to PATH"** — and Git from [git-scm.com](https://git-scm.com/download/win).)
 
