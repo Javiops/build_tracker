@@ -694,7 +694,39 @@ def per_champ(test: list[dict], guesses: list[list[int]], limit: int = 8) -> Non
         print(f"  {champ:<14} top-1 {c1 / count:.2f}  top-3 {c3 / count:.2f}   n={count}")
 
 
+def _windows_full_speed() -> None:
+    """Background processes get EcoQoS/low memory priority on Windows 11 and
+    run several times slower; opt this process out from the inside."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        k32 = ctypes.windll.kernel32
+        handle = k32.GetCurrentProcess()
+
+        class PPTS(ctypes.Structure):
+            _fields_ = [
+                ("Version", ctypes.c_uint32),
+                ("ControlMask", ctypes.c_uint32),
+                ("StateMask", ctypes.c_uint32),
+            ]
+
+        state = PPTS(1, 1, 0)  # PROCESS_POWER_THROTTLING_EXECUTION_SPEED off
+        k32.SetProcessInformation(handle, 4, ctypes.byref(state), ctypes.sizeof(state))
+
+        class MPI(ctypes.Structure):
+            _fields_ = [("MemoryPriority", ctypes.c_uint32)]
+
+        mem = MPI(5)  # MEMORY_PRIORITY_NORMAL
+        k32.SetProcessInformation(handle, 0, ctypes.byref(mem), ctypes.sizeof(mem))
+        k32.SetPriorityClass(handle, 0x00008000)  # ABOVE_NORMAL_PRIORITY_CLASS
+    except Exception:
+        pass
+
+
 def main() -> None:
+    _windows_full_speed()
     train_path = ML_DIR / "visits_train.jsonl"
     test_path = ML_DIR / "visits_test.jsonl"
     if not train_path.exists() or not test_path.exists():
