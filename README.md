@@ -21,9 +21,10 @@ winget install Git.Git
 
 then close and reopen PowerShell. (No winget? Get Python from [python.org/downloads](https://www.python.org/downloads/) — in the installer, tick **"Add python.exe to PATH"** — and Git from [git-scm.com](https://git-scm.com/download/win).)
 
-**Step 1 — get the app:**
+**Step 1 — get the app** (the `cd ~` first line matters: it makes sure the download lands in your user folder, so the next commands find it):
 
 ```powershell
+cd ~
 git clone https://github.com/Javiops/build_tracker.git
 cd build_tracker
 python -m venv .venv
