@@ -119,9 +119,40 @@ def main() -> int:
 
     if not args.no_train:
         if run_stage("export", "baseline.py"):
-            train_env = {"PREFIX_EPOCHS": "12", "PREFIX_COSINE": "1"}
-            if not run_stage("train", "train_prefix.py", env=train_env):
+            # Two-stage recipe (model G, 2026-09-05): joint aux-head training
+            # taxes the trunk 4-5pts at any loss weight, so train the trunk
+            # clean, then graft the save/plan heads onto the frozen weights.
+            base_env = {
+                "PREFIX_COSINE": "1",
+                "PREFIX_DMODEL": "128",
+                "PREFIX_LAYERS": "4",
+                "PREFIX_FF": "256",
+                "PREFIX_HEADS": "8",
+                "PREFIX_GOLDEST": "1",
+                "PREFIX_RUNES": "1",
+            }
+            trunk_env = {
+                **base_env,
+                "PREFIX_EPOCHS": "16",
+                "PREFIX_SAVEW": "0",
+                "PREFIX_TARGETW": "0",
+                "PREFIX_OUT": "prefix_trunk.pt",
+            }
+            graft_env = {
+                **base_env,
+                "PREFIX_EPOCHS": "6",
+                "PREFIX_SAVEW": "0.5",
+                "PREFIX_TARGETW": "0.25",
+                "PREFIX_INIT_FROM": "prefix_trunk.pt",
+                "PREFIX_FREEZE": "1",
+                "PREFIX_OUT": "prefix_model.pt",
+            }
+            if run_stage("train-trunk", "train_prefix.py", env=trunk_env):
+                if not run_stage("graft-heads", "train_prefix.py", env=graft_env):
+                    failures += 1
+            else:
                 failures += 1
+                log("trunk training failed — skipping head graft")
         else:
             failures += 1
             log("export failed — skipping training")

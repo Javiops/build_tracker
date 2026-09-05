@@ -31,10 +31,24 @@ class Predictor:
             raise FileNotFoundError(f"No trained model at {artifact}. Run scripts/train_prefix.py.")
         blob = torch.load(artifact, map_location="cpu", weights_only=False)
         config = blob.get("config") or {}
+        self.config = config
         # featurize exactly like the artifact was trained
         tp.USE_EXTRAS = bool(config.get("extras", True))
         tp.USE_HISTORY = bool(config.get("history", False))
+        tp.USE_GOLDEST = bool(config.get("gold_est", False))
+        tp.USE_RUNES = bool(config.get("runes", False))
+        tp.QUERY_DIM = int(config.get("query_dim", tp.BASE_QUERY_DIM))
         self.threshold = float(config.get("basket_threshold", tp.BASKET_THRESHOLD))
+        # multiset artifacts carry a trained count head (copies per item);
+        # older ones don't — their count outputs are untrained noise to ignore
+        self.has_counts = bool(config.get("counts"))
+        # save-head artifacts carry a calibrated buy-nothing binary that
+        # replaces SAVE's pseudo-item logit (spliced at +ln(pos_weight))
+        self.has_save = bool(config.get("save_head"))
+        # plan-head artifacts predict the next completed final; the blend lifts
+        # items by the plan mass they advance (component-altitude fix)
+        self.has_target = bool(config.get("target_head"))
+        self.target_blend = float(config.get("target_blend") or 0)
         self.champ_index = blob["champ_index"]
         self.item_index = blob["item_index"]
         self.label_ids = blob["label_ids"]
@@ -44,9 +58,29 @@ class Predictor:
         self.dragon = DataDragon()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = tp.PrefixModel(
-            len(self.champ_index), len(self.item_index), len(self.label_ids), len(self.item_index) + 1
+            len(self.champ_index),
+            len(self.item_index),
+            len(self.label_ids),
+            len(self.item_index) + 1,
+            d_model=int(config.get("d_model", 64)),
+            layers=int(config.get("layers", 2)),
+            ff_dim=int(config.get("ff_dim", 128)),
+            heads=int(config.get("heads", 4)),
+            query_dim=tp.QUERY_DIM,
         ).to(self.device)
-        self.model.load_state_dict(blob["state_dict"])
+        missing, unexpected = self.model.load_state_dict(blob["state_dict"], strict=False)
+        assert not unexpected, f"artifact has unknown weights: {unexpected}"
+        # heads the artifact predates may be missing (their outputs are ignored);
+        # anything the config claims to have trained must be present
+        allowed_missing = set()
+        if not self.has_counts:
+            allowed_missing.update(k for k in missing if k.startswith("count_head."))
+        if not self.has_save:
+            allowed_missing.update(k for k in missing if k.startswith("save_head."))
+        if not self.has_target:
+            allowed_missing.update(k for k in missing if k.startswith("target_head."))
+        hard_missing = [k for k in missing if k not in allowed_missing]
+        assert not hard_missing, f"artifact missing trained weights: {hard_missing}"
         self.model.eval()
         # Final items (and finished boots) a purchase can be "building toward",
         # with their full recursive component sets for arrow resolution.
@@ -65,14 +99,18 @@ class Predictor:
             if not data.get("from") and not data.get("into"):
                 self._standalone.add(item_id)
 
-    def _probs(self, row: dict) -> tuple[torch.Tensor, torch.Tensor]:
-        """(affordability-masked probs, raw probs). The raw ones rank what the
-        model wants regardless of current gold — needed for save/target logic,
-        where the wanted item is often exactly the one the mask zeroes out."""
+    def _probs(self, row: dict) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+        """(affordability-masked probs, raw probs, copies per item or None).
+        The raw ones rank what the model wants regardless of current gold —
+        needed for save/target logic, where the wanted item is often exactly
+        the one the mask zeroes out. Copies come from the count head (multiset
+        artifacts only): how many of an item this visit should buy."""
+        from app.shop_econ import SAVE_ITEM
+
         ds = tp.ShopDataset([row], self.champ_index, self.item_index, self.label_index, self.dragon)
         batch = next(ds.batches(1, shuffle=False))
         with torch.no_grad():
-            logits = self.model(
+            out = self.model(
                 batch["champs"].to(self.device),
                 batch["sides"].to(self.device),
                 batch["items"].to(self.device),
@@ -80,9 +118,27 @@ class Predictor:
                 batch["inv"].to(self.device),
                 batch["hist"].to(self.device),
             )
+            logits = out["items"]
+            save_q = None
+            if self.has_target and self.target_blend > 0:
+                if not hasattr(self, "_tmatrix"):
+                    self._tmatrix = tp.target_matrix(self.label_ids, self.dragon).to(self.device)
+                mass = torch.softmax(out["target"], dim=1) @ self._tmatrix
+                logits = logits + self.target_blend * torch.log(mass + 1e-4)
+            # splice AFTER the blend: SAVE has no recipe, plan mass must not punish it
+            if self.has_save:
+                save_q = float(torch.sigmoid(out["save"])[0, 0])  # honest cross-state prob
+                # save_splice False keeps the item head's own SAVE ranking (it
+                # handles the ward-vs-no-buy mix better, measured); the head
+                # still supplies save_q for gating and honest display
+                if self.config.get("save_splice", True):
+                    save_idx = self.label_index.get(SAVE_ITEM)
+                    tilt = float(self.config.get("save_tilt") or tp.SAVE_TILT)
+                    logits = tp.splice_save(logits, out["save"], save_idx, tilt=tilt)
             raw = torch.sigmoid(logits)[0].cpu()
             masked = torch.sigmoid(logits.masked_fill(~batch["legal"].to(self.device), -1e4))[0].cpu()
-        return masked, raw
+            want = (out["counts"].argmax(dim=2) + 1)[0].cpu() if self.has_counts else None
+        return masked, raw, want, save_q
 
     def _plan_probs(self, row: dict) -> torch.Tensor:
         """Masked probs for a counterfactual 'when you can afford it' state:
@@ -104,7 +160,7 @@ class Predictor:
             "gold_after_complete": state["gold_after_complete"],
             "n_inventory": state["n_inventory"],
         }
-        masked, _raw = self._probs(probe)
+        masked, _raw, _want, _save_q = self._probs(probe)
         return masked
 
     def predict(
@@ -124,7 +180,7 @@ class Predictor:
 
         from app.shop_econ import GOLD_DRIFT, SAVE_ITEM, combine_cost, is_blocked
 
-        first_probs, _ = self._probs(row)
+        first_probs, _, want, save_q = self._probs(row)
         inventory = [int(i) for i in (row.get("inventory") or []) if i]
         gold = float(row.get("gold") or 0)
         start_budget = gold + (GOLD_DRIFT if budget_slack is None else budget_slack)
@@ -201,6 +257,19 @@ class Predictor:
             basket.append({"item_id": item_id, "name": self.dragon.item_name(item_id), "prob": round(prob, 3), "cost": cost})
             sim_inv = list(inv_c.elements())
             budget -= cost
+            # Multiset: the count head says how many copies this visit buys
+            # (double Long Sword, second control ward — ~7% of real visits).
+            copies = int(want[idx]) if want is not None else 1
+            for _extra in range(copies - 1):
+                if len(basket) >= max_items:
+                    break
+                buy = buyable(item_id, sim_inv, budget)
+                if buy is None:
+                    break
+                cost, inv_c = buy
+                basket.append({"item_id": item_id, "name": self.dragon.item_name(item_id), "prob": round(prob, 3), "cost": cost})
+                sim_inv = list(inv_c.elements())
+                budget -= cost
 
         # "Building toward" arrows: for each non-final buy, the most probable
         # wanted final item whose recipe contains it.
@@ -219,11 +288,16 @@ class Predictor:
         if not basket and finals:
             p, fid, _comps = finals[0]
             cost = combine_cost(fid, Counter(inventory), self.dragon)
-            if model_save_prob >= self.threshold or (p >= save_floor and cost > gold):
+            if (
+                model_save_prob >= self.threshold
+                or (save_q is not None and save_q >= 0.5)  # calibrated head: 60% precision at this gate
+                or (p >= save_floor and cost > gold)
+            ):
                 save = {
                     "item_id": fid,
                     "name": self.dragon.item_name(fid),
-                    "prob": round(max(p, model_save_prob), 3),
+                    # save-head artifacts report the calibrated buy-nothing prob
+                    "prob": round(save_q if save_q is not None else max(p, model_save_prob), 3),
                     "need": max(0, int(cost - gold)),
                 }
 

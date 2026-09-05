@@ -34,6 +34,25 @@ def patch_from_version(game_version: str) -> str:
     return game_version or "unknown"
 
 
+def perk_fields(p: dict) -> dict:
+    """Keystone rune, secondary tree, and summoner spells from a match-v5
+    participant DTO. Zeros when the DTO predates rune storage (backfillable)."""
+    styles = ((p.get("perks") or {}).get("styles")) or []
+    keystone = 0
+    sub_style = 0
+    if styles:
+        selections = styles[0].get("selections") or []
+        keystone = int((selections[0] or {}).get("perk") or 0) if selections else 0
+        if len(styles) > 1:
+            sub_style = int(styles[1].get("style") or 0)
+    return {
+        "keystone_id": keystone,
+        "sub_style": sub_style,
+        "summ1": int(p.get("summoner1Id") or 0),
+        "summ2": int(p.get("summoner2Id") or 0),
+    }
+
+
 def reconstruct_game(match: dict, timeline: dict, dragon: DataDragon) -> tuple[dict, list[dict]]:
     info = match["info"]
     participants = []
@@ -52,6 +71,7 @@ def reconstruct_game(match: dict, timeline: dict, dragon: DataDragon) -> tuple[d
             "kills": p.get("kills", 0),
             "deaths": p.get("deaths", 0),
             "assists": p.get("assists", 0),
+            **perk_fields(p),
         }
         participants.append(row)
         by_pid[row["participant_id"]] = row

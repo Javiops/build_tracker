@@ -20,6 +20,10 @@ from app.shop_econ import GOLD_DRIFT, SAVE_ITEM, decision_kind, inventory_state,
 SEED = 16
 TRAIN_FRAC = 0.8
 OUT_DIR = DATA_DIR / "ml"
+# Remakes/aborts: no ranked game legitimately ends this early (unanimous FF
+# unlocks at 15:00), but a remake where all 10 made their opening buy would
+# otherwise pass the 10-shopper filter. Owner call (2026-09-04): exclude them.
+MIN_DURATION_S = 600
 
 
 def _item_ids(items: list) -> list[int]:
@@ -124,15 +128,17 @@ def _example(event: dict, dragon) -> dict | None:
         "gold_after_complete": state["gold_after_complete"],
         "n_inventory": state["n_inventory"],
         "decision": "save" if is_save else decision_kind(bought, inventory, dragon),
+        "keystone_id": (event.get("perks") or {}).get("keystone_id") or 0,
+        "sub_style": (event.get("perks") or {}).get("sub_style") or 0,
+        "summ1": (event.get("perks") or {}).get("summ1") or 0,
+        "summ2": (event.get("perks") or {}).get("summ2") or 0,
         "others": _others(event),
         "label_id": label_id,
+        # Multiset: duplicates preserved (double Long Sword is a real, distinct
+        # decision — ~7% of buying visits repeat an item). Order kept as bought.
         "label_ids": [SAVE_ITEM]
         if is_save
-        else [
-            item_id
-            for item_id in dict.fromkeys(bought)
-            if not dragon.classify(item_id).get("skip")
-        ],
+        else [item_id for item_id in bought if not dragon.classify(item_id).get("skip")],
         "label_name": label_name,
         "label_completed": label_completed,
     }
@@ -154,6 +160,25 @@ def load_examples() -> list[dict]:
                 """
             )
         }
+        # Shopper runes/summoner spells, backfilled into games.participants_json
+        # by scripts/backfill_runes.py (zeros for games not yet backfilled).
+        # Remakes (short games) are dropped from the eligible set here.
+        perks_by_match: dict[str, dict[str, dict]] = {}
+        for row in conn.execute("SELECT match_id, participants_json, game_duration FROM games"):
+            if row["match_id"] not in full:
+                continue
+            if (row["game_duration"] or 0) < MIN_DURATION_S:
+                full.discard(row["match_id"])
+                continue
+            perks_by_match[row["match_id"]] = {
+                p["puuid"]: {
+                    "keystone_id": p.get("keystone_id") or 0,
+                    "sub_style": p.get("sub_style") or 0,
+                    "summ1": p.get("summ1") or 0,
+                    "summ2": p.get("summ2") or 0,
+                }
+                for p in json.loads(row["participants_json"])
+            }
         rows = conn.execute(
             """
             SELECT match_id, payload_json
@@ -168,6 +193,7 @@ def load_examples() -> list[dict]:
                 continue
             event = json.loads(row["payload_json"])
             event["match_id"] = match_id
+            event["perks"] = (perks_by_match.get(match_id) or {}).get(event.get("puuid"))
             example = _example(event, dragon)
             if example:
                 examples.append(example)

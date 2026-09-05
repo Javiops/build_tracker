@@ -23,6 +23,27 @@ LIVE_URL = "https://127.0.0.1:2999/liveclientdata/allgamedata"
 TEAM_IDS = {"ORDER": 100, "CHAOS": 200}
 SNAPSHOT_DIR = DATA_DIR / "live_snapshots"
 
+# The live API names summoner spells; match-v5 (and the model) uses ids.
+SUMMONER_SPELL_IDS = {
+    "SummonerBoost": 1,       # Cleanse
+    "SummonerExhaust": 3,
+    "SummonerFlash": 4,
+    "SummonerHaste": 6,       # Ghost
+    "SummonerHeal": 7,
+    "SummonerSmite": 11,
+    "SummonerTeleport": 12,
+    "SummonerDot": 14,        # Ignite
+    "SummonerBarrier": 21,
+}
+
+
+def _summ_id(spell: dict | None) -> int:
+    raw = (spell or {}).get("rawDescription") or ""
+    for name, sid in SUMMONER_SPELL_IDS.items():
+        if name in raw:
+            return sid
+    return 0
+
 
 def fetch_snapshot(timeout: float = 2.0) -> dict | None:
     """None when no game is running (connection refused) or the API errors."""
@@ -121,7 +142,12 @@ def snapshot_to_row(snap: dict, dragon: DataDragon) -> dict | None:
         "role": _position(me),
         "team_id": team,
         "gold": gold,  # exact, unlike the frame-stale training value
+        "gold_exact": True,  # tells gold_est featurization not to add income drift
         "total_gold": None,
+        "keystone_id": int(((active.get("fullRunes") or {}).get("keystone") or {}).get("id") or 0),
+        "sub_style": int(((active.get("fullRunes") or {}).get("secondaryRuneTree") or {}).get("id") or 0),
+        "summ1": _summ_id((me.get("summonerSpells") or {}).get("summonerSpellOne")),
+        "summ2": _summ_id((me.get("summonerSpells") or {}).get("summonerSpellTwo")),
         "ally_obj": score.get(team) or {},
         "enemy_obj": score.get(100 if team == 200 else 200) or {},
         "level": int(active.get("level") or me.get("level") or 0),
