@@ -12,38 +12,35 @@
     background: #0b0e13; color: #e8e6e3;
     min-height: 100vh; padding: 24px;
   }
-  .wrap { max-width: 560px; margin: 0 auto; }
+  .wrap { max-width: 680px; margin: 0 auto; }
   h1 { font-size: 18px; font-weight: 600; letter-spacing: .02em; color: #c8aa6e; }
   .sub { color: #7a8494; font-size: 12px; margin-top: 2px; }
   .card {
     background: #131824; border: 1px solid #1f2738; border-radius: 10px;
-    padding: 16px; margin-top: 14px;
+    padding: 14px 16px; margin-top: 14px;
   }
   .state { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
   .state b { font-size: 17px; }
   .gold { color: #f0c75e; font-weight: 600; }
-  .label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7a8494; margin-bottom: 8px; }
-  .item { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
-  .item img { width: 34px; height: 34px; border-radius: 5px; border: 1px solid #2a3040; }
-  .item .name { flex: 1; }
-  .item .cost { color: #f0c75e; font-size: 13px; min-width: 52px; text-align: right; }
-  .buy {
-    background: #18213380; border: 1px solid #2c3b5a; border-left: 3px solid #5383e8;
-    border-radius: 8px; padding: 8px 10px; margin: 6px 0;
-  }
-  .arrow { color: #7a8494; font-size: 18px; padding: 0 2px; }
-  .target { display: flex; align-items: center; gap: 6px; }
-  .target img { width: 26px; height: 26px; border-radius: 4px; border: 1px solid #3a4a6a; }
-  .target .tname { font-size: 12px; color: #9fb3d9; max-width: 110px; }
-  .save-row {
-    background: #2a230f80; border: 1px solid #5a4a1e; border-left: 3px solid #f0c75e;
-    border-radius: 8px; padding: 10px; margin: 6px 0;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .save-row .badge { color: #f0c75e; font-weight: 700; letter-spacing: .06em; font-size: 12px; }
-  .bar { height: 5px; background: #222a3a; border-radius: 3px; overflow: hidden; margin-top: 3px; }
-  .bar i { display: block; height: 100%; background: #5383e8; }
-  .prob { font-size: 12px; color: #7a8494; }
+  .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
+  .option { background: #131824; border: 1px solid #1f2738; border-radius: 12px; padding: 14px; }
+  .option.best { border-color: #c8aa6e; box-shadow: 0 0 0 1px #c8aa6e40, 0 6px 18px #00000050; }
+  .option.alternative { border-color: #3d5a96; }
+  .option.save-card { border-color: #5a4a1e; background: #171408; }
+  .tier { font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; margin-bottom: 10px; font-weight: 700; }
+  .best .tier { color: #c8aa6e; }
+  .alternative .tier { color: #7ea0d8; }
+  .situational .tier { color: #7a8494; }
+  .save-card .tier { color: #f0c75e; }
+  .oitem { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .oitem img { width: 40px; height: 40px; border-radius: 6px; border: 1px solid #2a3040; }
+  .oitem .name { flex: 1; font-size: 14px; }
+  .oitem .cost { color: #f0c75e; font-size: 12.5px; }
+  .toward { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #2a3040; color: #9fb3d9; font-size: 12.5px; }
+  .toward img { width: 28px; height: 28px; border-radius: 5px; border: 1px solid #3a4a6a; }
+  .savebig { display: flex; align-items: center; gap: 12px; padding: 8px 0 2px; }
+  .savebig .coin { font-size: 26px; }
+  .savebig .msg { font-size: 14px; color: #e8d9a8; }
   .offline { text-align: center; color: #7a8494; padding: 40px 0; }
   .inv { display: flex; gap: 6px; flex-wrap: wrap; }
   .inv img { width: 26px; height: 26px; border-radius: 4px; border: 1px solid #2a3040; opacity: .85; }
@@ -53,52 +50,47 @@
 <body>
 <div class="wrap">
   <h1>BUILD TRACKER · LIVE</h1>
-  <div class="sub">what a Challenger would buy in this spot</div>
+  <div class="sub">what a Challenger would do in this spot — three ways to play the visit</div>
   <div id="content"><div class="card offline">Waiting for a game…</div></div>
   <footer id="foot"></footer>
 </div>
 <script>
 const content = document.getElementById("content");
 const foot = document.getElementById("foot");
+const TIER_LABEL = { best: "Best pick", alternative: "Also strong", situational: "If you prefer" };
 
 function icon(ver, id) {
   return `https://ddragon.leagueoflegends.com/cdn/${ver}/img/item/${id}.png`;
 }
 
-function itemRow(ver, it, withBar) {
-  return `<div class="item">
-    <img src="${icon(ver, it.item_id)}" alt="">
-    <div class="name">${it.name}
-      ${withBar ? `<div class="bar"><i style="width:${Math.round(it.prob * 100)}%"></i></div>` : ""}
-    </div>
-    <div><div class="cost">${it.cost}g</div><div class="prob">${Math.round(it.prob * 100)}%</div></div>
-  </div>`;
-}
-
-function buyRow(ver, it) {
-  const target = it.target ? `
-    <div class="target">
-      <span class="arrow">→</span>
-      <img src="${icon(ver, it.target.item_id)}" title="${it.target.name}">
-      <span class="tname">${it.target.name}</span>
+function optionCard(ver, opt) {
+  if (opt.kind === "save") {
+    const toward = opt.toward ? `
+      <div class="toward">
+        <img src="${icon(ver, opt.toward.item_id)}" title="${opt.toward.name}">
+        <span>holding for <b>${opt.toward.name}</b>${opt.toward.need ? ` — ${opt.toward.need}g to go` : " — affordable next base"}</span>
+      </div>` : "";
+    return `<div class="option save-card">
+      <div class="tier">Hold your gold</div>
+      <div class="savebig"><span class="coin">🪙</span><span class="msg">Buy nothing this visit${opt.toward ? "" : " — bank for the next spike"}</span></div>
+      ${toward}
+    </div>`;
+  }
+  const rows = opt.items.map(it => `
+    <div class="oitem">
+      <img src="${icon(ver, it.item_id)}" alt="">
+      <div class="name">${it.name}</div>
+      <div class="cost">${it.cost}g</div>
+    </div>`).join("");
+  const targets = [...new Map(opt.items.filter(it => it.target).map(it => [it.target.item_id, it.target])).values()];
+  const toward = targets.length ? `
+    <div class="toward">
+      ${targets.map(t => `<img src="${icon(ver, t.item_id)}" title="${t.name}">`).join("")}
+      <span>building toward <b>${targets.map(t => t.name).join(", ")}</b></span>
     </div>` : "";
-  return `<div class="buy"><div class="item" style="padding:0">
-    <img src="${icon(ver, it.item_id)}" alt="">
-    <div class="name">${it.name}
-      <div class="bar"><i style="width:${Math.round(it.prob * 100)}%"></i></div>
-    </div>
-    ${target}
-    <div><div class="cost">${it.cost}g</div><div class="prob">${Math.round(it.prob * 100)}%</div></div>
-  </div></div>`;
-}
-
-function saveRow(ver, s) {
-  return `<div class="save-row">
-    <span class="badge">SAVE</span>
-    <span class="arrow">→</span>
-    <img class="target-img" src="${icon(ver, s.item_id)}" style="width:30px;height:30px;border-radius:5px;border:1px solid #5a4a1e" title="${s.name}">
-    <div class="name">${s.name}</div>
-    <div class="cost">need ${s.need}g more</div>
+  return `<div class="option ${opt.tier}">
+    <div class="tier">${TIER_LABEL[opt.tier] || opt.tier}</div>
+    ${rows}${toward}
   </div>`;
 }
 
@@ -117,26 +109,17 @@ async function tick() {
     }
     const ver = d.ddragon_version;
     const mins = Math.floor(d.game_time_s / 60), secs = String(d.game_time_s % 60).padStart(2, "0");
+    const options = (d.options || []).map(o => optionCard(ver, o)).join("");
     content.innerHTML = `
       <div class="card state">
         <b>${d.champion}</b><span>${d.role || ""}</span>
         <span class="gold">${Math.floor(d.gold)}g</span>
         <span>lvl ${d.level}</span><span>${mins}:${secs}</span>
       </div>
+      ${options ? `<div class="options">${options}</div>` :
+        `<div class="card offline" style="padding:20px 0">Nothing confident enough right now — farm on.</div>`}
       <div class="card">
-        <div class="label">Optimal buys</div>
-        ${d.basket.map(it => buyRow(ver, it)).join("")}
-        ${d.save ? saveRow(ver, d.save) : ""}
-        ${!d.basket.length && !d.save ?
-          `<div class="offline" style="padding:10px 0">Nothing confident enough right now.</div>` : ""}
-      </div>
-      <div class="card">
-        <div class="label">Top picks</div>
-        ${d.top.length ? d.top.map(it => itemRow(ver, it, true)).join("") :
-          `<div class="offline" style="padding:10px 0">Nothing buyable — inventory full or all options blocked.</div>`}
-      </div>
-      <div class="card">
-        <div class="label">Your items</div>
+        <div class="label" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7a8494;margin-bottom:8px">Your items</div>
         <div class="inv">${d.inventory.map(it => `<img title="${it.name}" src="${icon(ver, it.item_id)}">`).join("")}</div>
       </div>`;
     foot.textContent = `model trained ${d.model_trained_at || "?"} · refreshes every 2s`;

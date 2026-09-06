@@ -67,8 +67,10 @@ def api_live() -> dict:
         return {"in_game": False}
     # live gold is exact: every "optimal buy" must be affordable right now
     result = predictor.predict(row, budget_slack=0)
+    options = predictor.predict_options(row, budget_slack=0)
     return {
         "in_game": True,
+        "options": options,
         "save": result["save"],
         "champion": row["champion"],
         "role": row["role"],

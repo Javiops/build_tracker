@@ -303,6 +303,110 @@ class Predictor:
 
         return {"top": top, "basket": basket, "save": save, "threshold": self.threshold}
 
+    def predict_options(self, row: dict, n_options: int = 3, budget_slack: float | None = None) -> list[dict]:
+        """The 3-basket view: distinct shopping plans, no probabilities exposed.
+
+        Option 1 is the model's basket; option 2 re-plans with option 1's lead
+        item banned (a genuinely different line); the last slot becomes the
+        hold-your-gold card when the calibrated save head says it's live.
+        Tiers ('best' / 'alternative' / 'situational') carry confidence
+        qualitatively instead of numbers.
+        """
+        from collections import Counter
+
+        from app.shop_econ import GOLD_DRIFT, SAVE_ITEM, combine_cost, is_blocked
+
+        first_probs, _, want, save_q = self._probs(row)
+        inventory = [int(i) for i in (row.get("inventory") or []) if i]
+        gold = float(row.get("gold") or 0)
+        start_budget = gold + (GOLD_DRIFT if budget_slack is None else budget_slack)
+
+        plan = self._plan_probs(row)
+        finals = []
+        for fid, comps in self._final_components.items():
+            p = float(plan[self.label_index[fid]])
+            if p >= self.threshold * 0.2 and not is_blocked(fid, inventory, self.dragon):
+                finals.append((p, fid, comps))
+        finals.sort(reverse=True)
+        allowed: set[int] = set(self._standalone)
+        for p, fid, comps in finals[:4]:
+            if p >= self.threshold * 0.45:
+                allowed |= comps | {fid}
+
+        def greedy(banned: set[int], bar: float = 0.7) -> list[dict]:
+            basket: list[dict] = []
+            sim_inv = list(inventory)
+            budget = start_budget
+            for idx in torch.argsort(first_probs, descending=True).tolist():
+                prob = float(first_probs[idx])
+                if prob < self.threshold * bar or len(basket) >= 4:
+                    break
+                item_id = self.label_ids[idx]
+                if item_id == SAVE_ITEM or item_id in banned:
+                    continue
+                if item_id not in allowed and prob < min(0.97, self.threshold + 0.18):
+                    continue
+                copies = int(want[idx]) if want is not None else 1
+                for _c in range(copies):
+                    if len(basket) >= 4 or is_blocked(item_id, sim_inv, self.dragon):
+                        break
+                    inv_c = Counter(sim_inv)
+                    cost = combine_cost(item_id, inv_c, self.dragon, consume=True)
+                    inv_c[item_id] += 1
+                    if cost > budget or sum(inv_c.values()) > 6:
+                        break
+                    entry = self._item_payload(item_id, prob, sim_inv)
+                    for p, fid, comps in finals:
+                        if item_id in comps and item_id != fid:
+                            entry["target"] = {"item_id": fid, "name": self.dragon.item_name(fid)}
+                            break
+                    basket.append(entry)
+                    sim_inv = list(inv_c.elements())
+                    budget -= cost
+            return basket
+
+        options: list[dict] = []
+        banned: set[int] = set()
+        tiers = ["best", "alternative", "situational"]
+        save_used = False
+        bar = 0.7
+        for slot in range(n_options):
+            # the last slot goes to the save card when the head says it's live
+            if not save_used and save_q is not None and (
+                (save_q >= 0.5 and not options) or (slot == n_options - 1 and save_q >= 0.3)
+            ):
+                toward = None
+                if finals:
+                    p, fid, _c = finals[0]
+                    need = combine_cost(fid, Counter(inventory), self.dragon) - gold
+                    toward = {"item_id": fid, "name": self.dragon.item_name(fid), "need": max(0, int(need))}
+                options.append({"kind": "save", "tier": tiers[min(slot, 2)], "items": [], "toward": toward})
+                save_used = True
+                continue
+            basket = greedy(banned, bar)
+            if not basket:
+                break
+            options.append({"kind": "buy", "tier": tiers[min(slot, 2)], "items": basket, "toward": None})
+            banned.add(basket[0]["item_id"])
+        if not options:
+            # a visit almost always deserves advice: relax the bar once, then
+            # fall back to the save card (low gold usually IS a hold spot)
+            basket = greedy(set(), bar=0.4)
+            if basket:
+                options.append({"kind": "buy", "tier": "situational", "items": basket, "toward": None})
+            elif save_q is not None:
+                toward = None
+                if finals:
+                    p, fid, _c = finals[0]
+                    need = combine_cost(fid, Counter(inventory), self.dragon) - gold
+                    toward = {"item_id": fid, "name": self.dragon.item_name(fid), "need": max(0, int(need))}
+                options.append({"kind": "save", "tier": "best", "items": [], "toward": toward})
+        # strip probabilities: tiers carry confidence in this view
+        for opt in options:
+            for it in opt["items"]:
+                it.pop("prob", None)
+        return options
+
     def _item_payload(self, item_id: int, prob: float, inventory: list[int]) -> dict:
         from app.shop_econ import buy_cost
 
