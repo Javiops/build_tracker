@@ -130,6 +130,10 @@ def main() -> int:
                 "PREFIX_HEADS": "8",
                 "PREFIX_GOLDEST": "1",
                 "PREFIX_RUNES": "1",
+                # pos_weight sweep 2026-09-06: overall plateaus 8-24, components
+                # keep climbing to 24 (0.49->0.53) while the ranked-save cost
+                # stays out of the live UX (the save gate carries it). 32 tips over.
+                "PREFIX_POSW": "24",
             }
             trunk_env = {
                 **base_env,

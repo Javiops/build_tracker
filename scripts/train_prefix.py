@@ -22,7 +22,7 @@ import math
 
 from app.config import DATA_DIR
 from app.ddragon import default_dragon
-from app.shop_econ import GOLD_DRIFT, SAVE_ITEM, combine_cost, damage_profile
+from app.shop_econ import GOLD_DRIFT, PINK, SAVE_ITEM, combine_cost, damage_profile
 
 ML_DIR = DATA_DIR / "ml"
 MAX_OTHERS = 9
@@ -962,6 +962,18 @@ def per_decision(test: list[dict], guesses: list[list[int]]) -> None:
             continue
         c1, c3, count = per[kind]
         print(f"    {kind:<12} top-1 {c1 / count:.2f}  top-3 {c3 / count:.2f}   n={count}")
+    # save_auxiliary: "save" visits are no-buys AND ward-only buys; recommending
+    # either action there is the same advice (hold gold, ward up), so both count.
+    aux_ok = set(PINK) | {SAVE_ITEM}
+    a1 = a3 = n_aux = 0
+    for row, guess in zip(test, guesses):
+        if row.get("decision") != "save":
+            continue
+        n_aux += 1
+        a1 += bool(guess) and guess[0] in aux_ok
+        a3 += any(g in aux_ok for g in guess)
+    if n_aux:
+        print(f"    {'save_aux':<12} top-1 {a1 / n_aux:.2f}  top-3 {a3 / n_aux:.2f}   n={n_aux}  (ward or save both correct)")
 
 
 def per_champ(test: list[dict], guesses: list[list[int]], limit: int = 8) -> None:
