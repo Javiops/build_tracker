@@ -65,13 +65,14 @@ def api_live() -> dict:
     row = snapshot_to_row(snap, predictor.dragon)
     if not row:
         return {"in_game": False}
-    # live gold is exact: every "optimal buy" must be affordable right now
-    result = predictor.predict(row, budget_slack=0)
+    # live gold is exact: every "optimal buy" must be affordable right now.
+    # The options view is the UI; the legacy predict() fields were dropped
+    # from the payload (they doubled the per-poll model work).
     options = predictor.predict_options(row, budget_slack=0)
     return {
         "in_game": True,
         "options": options,
-        "save": result["save"],
+        "save": None,
         "champion": row["champion"],
         "role": row["role"],
         "gold": row["gold"],
@@ -80,8 +81,8 @@ def api_live() -> dict:
         "inventory": [
             {"item_id": i, "name": predictor.dragon.item_name(i)} for i in row["inventory"]
         ],
-        "top": result["top"],
-        "basket": result["basket"],
+        "top": [],
+        "basket": [],
         "ddragon_version": predictor.dragon.version,
         "model_trained_at": predictor.trained_at,
     }
