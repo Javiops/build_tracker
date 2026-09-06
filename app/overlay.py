@@ -28,8 +28,10 @@ WIDTH, HEIGHT, MARGIN = 350, 540, 16
 
 
 def server_up() -> bool:
+    # a static route: /api/status scans the multi-GB events table and can
+    # blow any sane health-check timeout (that bug ate the first overlay)
     try:
-        return httpx.get(f"{BASE}/api/status", timeout=1.5).status_code == 200
+        return httpx.get(f"{BASE}/live", timeout=3).status_code == 200
     except httpx.HTTPError:
         return False
 
