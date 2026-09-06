@@ -44,6 +44,8 @@ python -m venv .venv
 
 Open **http://127.0.0.1:8000/live** (second monitor or alt-tab), start any game — including Practice Tool — and recommendations appear a few seconds after loading in. Note: custom 1v1s and Practice Tool report no positions and few players, so matchup-aware suggestions only shine in real games with full lobbies.
 
+**In-game overlay**: run `start_overlay.bat` for a draggable always-on-top widget over the game itself (like Porofessor/Blitz), showing three ways to play each shop visit — best pick, a strong alternative, or hold your gold. Requires League's display mode set to **Borderless** (or Windowed); exclusive Fullscreen cannot be drawn over. Drag to move, ✕ to close. It starts the local server automatically if needed.
+
 ## Collecting data / training your own (API key required)
 
 Put a Riot API key in `.env` (`RIOT_API_KEY=RGAPI-...`, see `.env.example`):

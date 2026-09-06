@@ -45,9 +45,24 @@
   .inv { display: flex; gap: 6px; flex-wrap: wrap; }
   .inv img { width: 26px; height: 26px; border-radius: 4px; border: 1px solid #2a3040; opacity: .85; }
   footer { margin-top: 14px; font-size: 11px; color: #55607080; text-align: center; }
+  /* overlay widget mode (?overlay=1): compact, draggable, with a close button */
+  body.overlay { padding: 10px; background: #0b0e13f2; cursor: grab; }
+  body.overlay .wrap { max-width: none; }
+  body.overlay .sub, body.overlay footer { display: none; }
+  body.overlay h1 { font-size: 13px; }
+  body.overlay .options { grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
+  body.overlay .option { padding: 10px 12px; }
+  body.overlay .card { padding: 10px 12px; margin-top: 8px; }
+  body.overlay .oitem img { width: 32px; height: 32px; }
+  body.overlay .oitem { padding: 4px 0; }
+  #closer { display: none; position: fixed; top: 6px; right: 8px; color: #7a8494; font-size: 16px;
+            cursor: pointer; z-index: 10; padding: 2px 6px; }
+  #closer:hover { color: #e8e6e3; }
+  body.overlay #closer { display: block; }
 </style>
 </head>
 <body>
+<div id="closer" title="Close overlay">✕</div>
 <div class="wrap">
   <h1>BUILD TRACKER · LIVE</h1>
   <div class="sub">what a Challenger would do in this spot — three ways to play the visit</div>
@@ -57,6 +72,12 @@
 <script>
 const content = document.getElementById("content");
 const foot = document.getElementById("foot");
+if (new URLSearchParams(location.search).has("overlay")) {
+  document.body.classList.add("overlay");
+  document.getElementById("closer").addEventListener("click", () => {
+    if (window.pywebview) window.pywebview.api.close();
+  });
+}
 const TIER_LABEL = { best: "Best pick", alternative: "Also strong", situational: "If you prefer" };
 
 function icon(ver, id) {
