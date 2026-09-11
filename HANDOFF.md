@@ -101,9 +101,13 @@ there is no new shutdown authorization for this work. No final-test evaluation,
 model promotion, or commit has been authorized by the seven-step request.
 
 Written 2026-09-09, revised the same day after an external audit. `CLAUDE.md` /
-`AGENTS.md` now mirror the durable serving/training contract; this file remains
-the source of truth for active jobs, mutable corpus state, and the recovery
-queue. Where they disagree, this file is right.
+`AGENTS.md` carry the durable contract; this file covers mutable corpus state,
+the recovery queue, and the long-form reasoning behind them.
+
+**This file is not the binding contract and is not read first.** Start at
+`CLAUDE.md` — it is short, and it is what an assistant loads every session.
+Come here for depth on a specific question, and run `scripts/status.py` for
+anything about what is happening right now.
 
 **If you read only one thing, read §5.** An earlier version of this handoff
 claimed the project had gained "+14 points in actual games" from exact-gold
@@ -111,16 +115,15 @@ training. That claim was withdrawn: it compared an eval harness against a
 training log, and the estimator behind it was reading a frame from *after* the
 decision. §5 explains what is actually known.
 
-Read order: §1 (what the product is) → §3 (what is running right now, so you
-don't collide with it) → §5 (gold) → §6 (the audit and what it changed) → §9
-(traps) → §11 (the queue).
+Read order: §1 (what the product is) → `scripts/status.py` (what is running,
+so you don't collide with it) → §5 (gold) → §6 (the audit and what it changed)
+→ `docs/history.md` (traps) → §11 (the queue).
 
-**§2 is the development history**, kept on purpose and kept honest: the
-timeline, a ledger of every belief this project had to withdraw, and the
-engineering failures with the symptom that hid each one. It is the only place
-that records *why* the current design looks the way it does. Append to it as
-the project moves, and when something here turns out to be wrong, move it into
-§2.2 instead of quietly deleting it.
+**The development history lives in two places now.** §2.1 keeps the timeline;
+the ledger of withdrawn beliefs, the engineering failures and the traps moved
+verbatim to `docs/history.md` so they survive independently of this file's
+live-status sections. When something here turns out to be wrong, move it into
+that ledger instead of quietly deleting it.
 
 ---
 
@@ -168,9 +171,10 @@ the wins. Almost everything expensive this project learned, it learned by
 believing a number that turned out to be wrong — and a handoff that documents
 only the current state hands the next person the conclusions without the
 reasoning that earned them. Keep appending to it. When a belief here is
-overturned, move it to §2.2 rather than deleting it.
+overturned, move it to the withdrawn-belief ledger in `docs/history.md`
+ rather than deleting it.
 
-Commits exist through 2026-09-06; **everything after that is uncommitted** (§12).
+Commits exist through 2026-09-06; **everything after that is uncommitted** (`git status`).
 
 ### 2.1 Timeline
 
@@ -183,124 +187,23 @@ Commits exist through 2026-09-06; **everything after that is uncommitted** (§12
 | **09-05** | **C** (multiset count head — each buy is a multiset, ~7% of visits repeat an item). **D** (`pos_weight=1`: ECE 0.0002 but −6pts — the weighting is load-bearing and its tilt is analytically invertible). **E/F**: save and plan heads trained jointly cost the trunk 4-5pts at *any* loss weight → the **two-stage graft recipe** (train the trunk clean, freeze it, graft the heads) that is still in use. |
 | **09-06** | `pos_weight` sweep (1/4/8/16/24/32) → **H24 deployed**. Live panel reworked into three baskets with no probability numbers, on the reasoning that a tilted logit is not a confidence and should not be shown as one. **In-game overlay** (frameless pywebview). `/api/live` serves options only (halves per-poll work). Health check moved off `/api/status`, which scans a multi-GB table and outlives any timeout. |
 | **09-07** | Five owner-requested improvements: nightly-task auto-recovery, streaming `baseline.py`, a gold eval harness, per-label `pos_weight`, and a stability metric with hysteresis. Then a product decision: **the owner chose a closed beta over more model work**, on the grounds that the open questions had stopped being model-shaped. Launcher, bundle and runbook followed. |
-| **09-08** | Fresh export (**17.7k games / 2.13M visits**) — the streaming rewrite from the day before is what let it complete at all. H24 retrained on it. Three-way weight comparison: the simple monotone **8:24 schedule beat both H24 and a hand-shaped alternative**. Beta bundle built, and debugged (§2.3). And the gold work began: a first measurement, two corrections, a forward walk, a corpus refresh. |
-| **09-09 (am)** | GOLDX candidate trained on that forward walk and deployed; nightly recipe updated to match. A "+14 points in actual games" claim was made and is now **withdrawn** (§2.2, §5). |
+| **09-08** | Fresh export (**17.7k games / 2.13M visits**) — the streaming rewrite from the day before is what let it complete at all. H24 retrained on it. Three-way weight comparison: the simple monotone **8:24 schedule beat both H24 and a hand-shaped alternative**. Beta bundle built, and debugged (`docs/history.md`). And the gold work began: a first measurement, two corrections, a forward walk, a corpus refresh. |
+| **09-09 (am)** | GOLDX candidate trained on that forward walk and deployed; nightly recipe updated to match. A "+14 points in actual games" claim was made and is now **withdrawn** (`docs/history.md`, §5). |
 | **09-09 (pm)** | **External audit.** Four fatal findings, all confirmed in code within minutes. Fixed the same day: causal gold estimator with a no-future test, versioned gold input with a hard gate, featurization parity through one function, frozen temporal 3-way split, policy-level evaluation, save disaggregation, honest stability decomposition. A follow-up round fixed the split's `post_cutoff` protocol and a metric whose point estimate and confidence interval described different populations. |
 | **09-09 (eve)** | Serving contract tightened: scoring only happens inside an explicit shop session, artifacts need provenance and a digest bound in `deployment_manifest.json` to serve, and **raw Match-V5 responses are archived locally as gzip** so a future reconstruction change costs no API time. |
-| **09-09 (night)** | **First honest measurement in the project's life**: a 3k-game causal probe, two trained artifacts on one export, paired by game, `probe_only`. Causal gold 32.0% first-action-exact vs stale gold 20.4%, paired +11.6 [+11.3, +11.9], zero unaffordable. And the finding that matters more than the headline (§2.2, last row). |
+| **09-09 (night)** | **First honest measurement in the project's life**: a 3k-game causal probe, two trained artifacts on one export, paired by game, `probe_only`. Causal gold 32.0% first-action-exact vs stale gold 20.4%, paired +11.6 [+11.3, +11.9], zero unaffordable. And the finding that matters more than the headline (`docs/history.md`, last row of the ledger). |
 
-### 2.2 Beliefs this project held, and had to withdraw
+### 2.2–2.4 Withdrawn beliefs, engineering failures, what they share
 
-Every row here was believed by someone competent, acted on, and later
-disproved. They are kept so nobody re-derives them.
-
-| We believed | Why it was plausible | What disproved it | What stands now |
-|---|---|---|---|
-| `gold_left + net_spend` is the player's arrival gold | It is the arithmetic the wallet implies | Two separate discoveries: it is derived from the label (09-02), and it is not even arrival gold — it adds the spend back without removing the gap's income, ≈ **+630 g** too high (09-08) | Banned as a feature *and* as an evaluation reference |
-| Exact live gold is a free win — live inference is *better* off than training | Live reads the client's real wallet; training reads a 60 s-stale frame | Feeding "exact" gold made accuracy collapse (0.63 → 0.43) | The measurement was invalid (see next row), but the assumption was never evidence in the first place |
-| The live regime costs −19.4 points | Measured with a real harness | The "exact gold" arm was the inflated field above | Withdrawn |
-| Then: the live regime costs −12.0 points | Better harness, better reference | The "live" arm was still a leaky estimate, scored on canonical labels, on a contaminated split | Weakened to "the direction is certain, the magnitude is unmeasured" |
-| `gold_est` is label-free, therefore legitimate | It never reads the purchase | The audit found it read the frame **after** the decision to build its income residual: temporal leakage, and post-purchase income partly *caused by* the label | Replaced by `prequential-v2`, pinned by a no-future unit test |
-| GOLDX gives +14 points in actual games | Two numbers, both real | They came from different metrics (a training log vs a harness), unpaired, on a leaky budget | Withdrawn. Replaced 09-09 night by a paired ablation: **+11.6 points on a 3k probe**, which is evidence for the same direction and is not the same claim |
-| Prediction flickers on 2.9% of polls with identical state | Measured on 20k real snapshots | "Identical state" meant only equal inventory and level; gold, clock and board kept moving. Decomposed by cause: **0 residual flicker** | Hysteresis is delaying legitimate updates, not suppressing noise. Not removed — 300 Practice-Tool snapshots is not enough to remove it either |
-| The test split measures generalisation | It was split by match, no visit leakage | Architecture, `pos_weight`, threshold, blend and graft recipe had all been chosen while looking at it | It was a validation set. Frozen temporal 70/15/15 split introduced; test untouched |
-| top-1 / top-3 measure the product | They were the numbers the trainer printed | They score a canonical stand-in label (completed item, else priciest), never the three baskets the user sees | Demoted to diagnostic; `eval_policy.py` scores the displayed policy |
-| Freezing the test IDs keeps a frozen split honest | The held-out games never change | Newly ingested games were being parked in **train**, and they are newer than the test cut — training on the future relative to the held-out set | New games go to `post_cutoff` and enter no artifact (§6.1) |
-| A hand-shaped `pos_weight` bump (8→24→12, save pinned low) would beat the monotone schedule | It encoded real knowledge about which classes want which weight | It landed between H24 and the simple 8:24 on every metric | The simple monotone schedule won. Recorded because the losing idea was the better *story* |
-| The transformer is clearly worth its complexity | It beat a champion-frequency baseline 0.63 vs 0.13 | On the displayed-policy metric, the stale-gold model scores **20.4%** and a conditional lookup table scores **20.8%** | Unresolved and important. Only the causal-gold model (32.0%) clears the table. Until the full-corpus run, assume the architecture has not yet earned its cost |
-
-### 2.3 Engineering failures worth remembering
-
-Cheap to hit again, so they are named with their symptom:
-
-- **The export outgrew RAM twice** (09-03, 09-04). 2.1M rows as Python dicts is ~13 GB on a 15.8 GB machine. Symptom: a silent seven-hour hang, no traceback, machine unusable. Both `baseline.py` and `train_prefix.py` are streaming-only now.
-- **Long background jobs started from an agent session get killed** (~3 min). Two overnight chains died mid-`baseline.py` with no error at all. Everything heavy now runs as a one-shot Windows scheduled task that unregisters itself.
-- **The Riot dev key expires every 24 h** and killed three jobs in two days, twice mid-refresh. Regenerating in the portal invalidates the previous key, so regenerating while a job runs kills that job.
-- **`$hashA + $hashB` throws in PowerShell 5.1** on duplicate keys. Crashed an overnight chain between two stages, after the expensive one had succeeded.
-- **A `Start-Transcript`-based watcher died before writing its first line**, so the failure was invisible. Watchers now use `Add-Content` and ASCII only.
-- **PyInstaller `--windowed` gives a process with `sys.stdout is None`**, and uvicorn's log formatter calls `.isatty()` on it. The beta exe died instantly on launch, with no console to say why.
-- **Editing `daily_pull.py` mid-run changes nothing** — Python had already loaded it — while its *subprocesses* do pick up new code at launch. That asymmetry has caused one wasted night.
-- **`refresh_done.txt` is purpose-agnostic.** Reusing it across two different refresh campaigns would have silently skipped 9,076 games.
-- **An eval harness silently dropped one featurization flag** (`USE_GOLDX`) and would have scored a model in a regime it was never trained in. Nothing would have crashed.
-- **A metric's point estimate and its confidence interval were computed over different populations** — purchases for one, purchases plus no-buys for the other.
-- **Near miss**: an automatic shutdown scheduled for "when the overnight work finishes" fired while the owner was back at the machine. Aborted with seconds to spare. Never schedule a shutdown that was not asked for in that session.
-
-### 2.4 What they have in common
-
-Not one of these announced itself. No crash, no stack trace, no red test — every
-single one produced plausible output that a reasonable person acted on. The
-RAM failure looked like a slow machine. The leaky gold looked like a
-breakthrough. The contaminated split looked like a good score. The flicker
-metric looked like a product insight.
-
-So the operating assumption for this project is: **the failure mode is not
-breakage, it is numbers that look right.** That is why the tests in §13 assert
-properties rather than outputs (a feature cannot read the future; a point
-estimate and its interval share a population; an artifact's config reaches the
-featurization), and why nothing gets promoted on a number that has not been
-produced by the deployed policy on a split nobody has shopped against.
+Moved verbatim to **`docs/history.md`**. Append new withdrawn beliefs there.
 
 ---
 
-## 3. What is running RIGHT NOW
+## 3. What is running right now
 
-Everything heavy runs as **one-shot Windows scheduled tasks** (trap §9.1).
-`Get-ScheduledTask -TaskName "BuildTracker*"` lists them.
-
-| Task | Started | What it does | Log |
-|---|---|---|---|
-| `BuildTracker Daily Pull` | 12:45 today | KR+EUW Chall/GM + pros over a 35 h window. The 1,018 count in its log is this incremental, deduplicated match batch — **not** the corpus size. | `data/daily_pull.log` |
-| `BuildTracker Refresh After Pull` | 12:49 today | Waits for the pull's `--- export start ---`, then resumes `--backfill --refresh` from checkpoint 15,142. | `data/refresh_after_pull_0909.log` |
-
-At 15:30 today, before the handoff refresh resumes, SQLite contains **19,868
-full-lobby games**, **187,544 player perspectives**, **2,378,201 game-event
-rows**, and **2,246,693 shop visits**. The daily 1,018 is a new-window intake;
-the refresh must re-reconstruct the existing corpus under `prequential-v2`.
-
-**Both were started before this session's changes, so they hold the OLD code in
-memory** (Python loads a module once). Two consequences:
-
-1. The pull will invoke the NEW `baseline.py` and `train_prefix.py` as
-   subprocesses when it reaches those stages, but with its old env: it still
-   passes `PREFIX_GOLDX=1`.
-2. The corpus it exports was reconstructed by the **old, leaky** estimator, so
-   its rows carry no `gold_est_version`. The new version gate (§5.6) will
-   therefore **fail that training run on purpose**, loudly, instead of training
-   on a half-causal budget. The ingest is unaffected and is kept.
-
-That is the intended behaviour, not a mishap — but it means **tonight produces
-no model**. Nothing was stopped without asking, per instruction.
-
-**Owner recovery instruction, revised 23:50:** complete the full ~20k-game
-causal refresh first. The active daily pull already covers its rolling 35 h
-window. After the refresh, run one serial
-`scripts/daily_pull.py --hours 0 --no-train`: its built-in gap calculation
-starts from the last completed daily run and adds only a small overlap, rather
-than duplicating a fixed 40 h window. Then invoke `app.ingest --backfill
---refresh` once more: because `refresh_done.txt` already contains the first
-corpus pass, this second pass rewrites only game IDs newly added by that
-incremental catch-up. Only after both refresh checks cover every stored game
-may `baseline.py --rebuild-split`, candidate training, and validation-only
-policy selection begin. Never run that catch-up alongside a Riot refetch.
-
-**Raw-source durability change (09-09):** `RiotClient` now atomically archives
-successful Match-V5 `match` and `timeline` responses as local gzip envelopes
-under ignored `data/raw_match_v5/`, tagged with source endpoint, match ID and
-retrieval time. The already-running full refresh loaded the old process and
-will not populate this archive; do **not** stop it or launch a parallel raw
-collector. The serial incremental catch-up and every later process load the new
-client, archive their source payloads, and reuse them on replay without a
-second API request. Existing games do not justify an immediate second 20-hour
-crawl solely to populate the cache.
-
-**Former served model**: `data/ml/prefix_model.pt` = the GOLDX + 8:24 candidate
-trained 2026-09-09 03:11 **on the leaky estimator**. It is now
-legacy/unverified and the live route refuses to serve it. It remains useful for
-forensics only. A future artifact must pass the frozen-validation policy report
-and be explicitly promoted with its digest bound in
-`data/ml/deployment_manifest.json`; see Phase 4 below. Previous artifact:
-`prefix_model_h24_stale_0908.pt`; revert is not a serving remedy because it
-also needs provenance and promotion.
+Run **`scripts/status.py`**. It reports scheduled tasks, active log tails,
+the served artifact digest, corpus generations and `git status` by reading
+the machine, so it cannot be stale the way this section always was.
 
 ---
 
@@ -658,7 +561,7 @@ separately validated session-state update policy exists.
 - **`app/ladder.py` / `pros.py` / `backfill.py` / `ingest.py`** — ingest modes.
   `--backfill --refresh` re-reconstructs the whole corpus, checkpointed in
   `data/refresh_done.txt`.
-- **`scripts/baseline.py`** — export + split + manifest. Streaming (§9.2).
+- **`scripts/baseline.py`** — export + split + manifest. Streaming — see the traps in `docs/history.md`.
 - **`scripts/train_prefix.py`** — the model: 10-token board (token 0 the
   shopper; the enemy in the shopper's role gets a distinct side id), query
   vector with state/affordability/damage-share/runes, multi-label BCE with
@@ -684,40 +587,9 @@ separately validated session-state update policy exists.
 
 ---
 
-## 9. Traps (each cost real hours)
+## 9. Traps
 
-1. **Long background processes started from an agent session get killed
-   (~3 min here).** Two overnight chains died mid-`baseline.py` with no
-   traceback. Use a one-shot Windows scheduled task that unregisters itself,
-   and watch its log.
-2. **RAM is 15.8 GB; the export is ~4.3 GB of JSONL / 2.1 M rows.** Loading it
-   as dicts costs ~13 GB and thrashes (a silent 7-hour hang on 09-03).
-   `baseline.py` and `train_prefix.py` stream. Never `list(load_jsonl(...))`.
-3. **The Riot dev key expires every 24 h**; 401 aborts ingest. It killed three
-   jobs in two days. Verify with a `status-v4` call first. Regenerating in the
-   portal invalidates the previous key, so regenerating mid-job kills the job.
-   The fix is a **Personal API Key** (§10).
-4. **Windows PowerShell 5.1**: `$hashA + $hashB` throws on duplicate keys (this
-   crashed an overnight chain). No `&&`/`||`, no ternary. Prefer ASCII-only
-   scripts and `Add-Content` logging — a `Start-Transcript` watcher died before
-   writing anything.
-5. **A running Python process holds the old module.** Editing
-   `daily_pull.py` mid-run changes nothing; its subprocesses, however, pick up
-   new `baseline.py` / `train_prefix.py` at launch. That asymmetry is exactly
-   what makes tonight's run fail (§3).
-6. **Tensor cache** keys on export size/mtime plus feature knobs (`v8` now). A
-   new knob that changes featurization must go in that key.
-7. **`refresh_done.txt` is purpose-agnostic.** Rotate it before starting a
-   different kind of refresh (the rune refresh's 9,076 ids are archived as
-   `data/refresh_done_runes_0904.txt`).
-8. **PyInstaller `--windowed`**: `sys.stdout` is `None` and uvicorn's log
-   formatter calls `.isatty()` → instant death. `app/advisor.py` shims both
-   streams and passes `log_config=None`.
-9. **`PATCH_STARTS_UTC`** needs an entry on patch day (ingest warns and falls
-   back to a 16-day window).
-10. **Frames are 60 s apart and visits are stamped with the frame before them.**
-    Root cause of the whole gold story. Any new "current state" feature
-    inherits that staleness — ask which regime live will be in.
+Moved verbatim to **`docs/history.md`**.
 
 ---
 
@@ -842,84 +714,29 @@ under the new budget. Capacity is saturated (d160 flat, d192 worse) — not ther
 
 ## 12. Uncommitted work
 
-Nothing since 2026-09-06 is committed. The owner has not asked for a commit;
-ask before creating one.
-
-**Modified today (audit)**: `app/reconstruct.py` (prequential-v2, version tag,
-debug payload), `app/live.py` (`live-exact-v2`), `app/predictor.py`
-(`apply_config`), `scripts/train_prefix.py` (version gate,
-`apply_config`, val-only scoring, `save_kind`-driven save head, `gold_input`,
-cache v8, `no_build_spend` rename), `scripts/baseline.py` (3-way frozen
-temporal split, manifest, `save_kind`, version passthrough),
-`scripts/daily_pull.py` (candidate artifacts, no auto-deploy, corrected
-comments), `scripts/eval_live_gold_sampled.py` (parity, honest naming),
-`scripts/eval_live_gold.py` (marked superseded),
-`scripts/validate_gold_est.py` (caveats), `scripts/eval_stability.py`
-(decomposition), `HANDOFF.md`, `AGENTS.md`, `CLAUDE.md`.
-
-**Modified earlier (09-07/08)**: `app/config.py` (frozen ROOT),
-`app/ladder.py` (patch warning), `app/main.py` (former hysteresis), `.gitignore`.
-
-**New**: `app/advisor.py`, `scripts/build_beta.ps1`, `scripts/eval_policy.py`,
-`scripts/eval_conditional_baseline.py`, `scripts/eval_stability.py`,
-`scripts/eval_live_gold*.py`, `scripts/validate_gold_est.py`,
-`scripts/test_gold_causal.py`, `scripts/test_audit.py`,
-`scripts/test_live_predict.py`, `docs/beta.md`, `HANDOFF.md`,
-`start_advisor.bat`, `stop_advisor.bat`.
-
-**Modified after the serving follow-up**: `app/main.py`, `app/predictor.py`,
-`web/live.html`, `scripts/train_prefix.py`, `scripts/eval_policy.py`,
-`scripts/build_beta.ps1`, `README.md`, `docs/beta.md`, `.gitignore`.
-
-**New after the serving follow-up**: `app/telemetry.py`, `app/deployment.py`,
-`scripts/eval_shop_telemetry.py`, `scripts/eval_conditional_policy.py`,
-`scripts/promote_served_model.py`, `scripts/test_live_api.py`,
-`scripts/test_live_sessions.py`, `scripts/test_artifact_provenance.py`,
-`scripts/test_conditional_policy.py`.
-
-Artifacts in `data/ml/` (gitignored): `prefix_model.pt` (live, GOLDX on leaky
-gold), `prefix_model_goldx.pt` (same), `prefix_model_sched.pt` (8:24 on stale
-gold — the fallback), `prefix_model_h24_stale_0908.pt` (pre-GOLDX backup), plus
-the A–H series and the three weight-comparison trunks.
+Use `git status`. This section was a hand-typed file list that went stale
+between sessions; `scripts/status.py` prints the live one.
 
 ---
 
 ## 13. Verifying you haven't broken anything
 
 ```powershell
-.venv\Scripts\python.exe scripts\test_shop_econ.py       # gold economics
-.venv\Scripts\python.exe scripts\test_visits.py          # reconstruction + save events
-.venv\Scripts\python.exe scripts\test_gold_causal.py     # gold_est cannot see the future
-.venv\Scripts\python.exe scripts\test_audit.py           # parity, gate, split, save, labels, stability
-.venv\Scripts\python.exe scripts\test_live_predict.py    # deployed artifact through the live path
-.venv\Scripts\python.exe scripts\test_live_api.py        # explicit-session serving contract
-.venv\Scripts\python.exe scripts\test_live_sessions.py   # prospective telemetry semantics
-.venv\Scripts\python.exe scripts\test_artifact_provenance.py # promotion and provenance gate
+.venv\Scripts\python.exe scripts\run_tests.py
 ```
 
-Plain assert scripts, no pytest. The two that catch the expensive class of
-mistake are `test_gold_causal.py` (a feature that reads the future) and
-`test_audit.py` (a harness that scores a model in a regime it was not trained
-in — nothing crashes, the number is just wrong).
+Runs every `scripts/test_*.py` in its own subprocess and exits non-zero if
+any fail. The two that catch the expensive class of mistake are
+`test_gold_causal.py` (a feature that reads the future) and `test_audit.py`
+(a harness scoring a model in a regime it was not trained in — nothing
+crashes, the number is just wrong).
 
 ---
 
 ## 14. What still cannot be demonstrated
 
-Be explicit about this with the owner; it is the honest boundary of the project.
-
-- **Live performance.** The collector is implemented but no representative
-  telemetry population has been collected yet, so there is no measurement of
-  the advice the overlay actually gave in real shop sessions. Every existing
-  performance number remains a replay.
-- **The income forecast in `gold_est`.** Validating it needs exact gold at a
-  known timestamp — i.e. the same telemetry.
-- **Whether the advice is good.** Imitation labels say what a Challenger did,
-  never whether it worked. No human rating, no outcome-conditioned analysis.
-- **Transfer to the actual users.** Testers are not Challenger and their games
-  are off-distribution. Nothing measures that gap yet.
-- **Manual recalls with no purchase.** Match-V5 cannot observe them, so the
-  save class only covers post-death no-buys. Do not invent labels for the rest.
+Moved verbatim to **`docs/history.md`**. It is the honest boundary of the
+project's claims; keep it current there.
 
 ---
 
