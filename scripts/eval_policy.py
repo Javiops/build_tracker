@@ -532,6 +532,37 @@ def main() -> None:
     print(flush=True)
     print(f"wrote {out}", flush=True)
 
+    # A number without <metric, split, n, report path> is inadmissible, so print
+    # the envelope next to the numbers rather than leaving it to be reassembled
+    # from scrollback. Quote this block whenever you quote a metric above.
+    print(flush=True)
+    print("=" * 72, flush=True)
+    print("CITATION — copy this with any number above", flush=True)
+    for tag, name, predictor in models:
+        config = predictor.config
+        gold_input = config.get("gold_input") or (
+            "prequential-v2" if config.get("gold_x") else "stale-frame-gold"
+        )
+        print(
+            f"  {tag}: {name}  sha256={predictor.artifact_sha256[:12]}  "
+            f"gold_input={gold_input}  provenance={provenance_checks[tag]['status']}",
+            flush=True,
+        )
+    print(
+        f"  split={args.split}  games={len(outcomes['A'])}  visits={scored}  "
+        f"bootstrap={args.bootstrap}  seed={args.seed}",
+        flush=True,
+    )
+    print(f"  report={out}", flush=True)
+    if not args.compare:
+        print(
+            "  UNPAIRED: single-artifact run. These values describe this "
+            "artifact only;\n  they are not a comparison and no difference "
+            "may be inferred from them.",
+            flush=True,
+        )
+    print("=" * 72, flush=True)
+
 
 if __name__ == "__main__":
     main()

@@ -1210,6 +1210,36 @@ def _windows_full_speed() -> None:
         pass
 
 
+def training_log_banner(position: str) -> None:
+    """Mark every number this script prints as a training-log diagnostic.
+
+    "GOLDX gives +14 points in actual games" was withdrawn because a number
+    from this script was compared against a number from eval_policy.py. They
+    measure different things on different populations and are never
+    comparable. The numbers below score a canonical stand-in label (completed
+    item, else priciest) on validation rows — not the three baskets the player
+    is shown. Only scripts/eval_policy.py scores the displayed policy, and
+    only its report may be quoted, compared or used to promote.
+    """
+    if position == "open":
+        print(flush=True)
+        print("-" * 72, flush=True)
+        print("TRAINING-LOG DIAGNOSTICS — canonical stand-in label, not the "
+              "displayed policy.", flush=True)
+        print("Not comparable with any eval_policy.py number. Not quotable as "
+              "a result.", flush=True)
+        print("-" * 72, flush=True)
+    else:
+        print(flush=True)
+        print("-" * 72, flush=True)
+        print("End of training-log diagnostics. Nothing above is admissible "
+              "evidence.", flush=True)
+        print("For a quotable number, run:", flush=True)
+        print("  scripts/eval_policy.py --artifact <candidate> --split val",
+              flush=True)
+        print("-" * 72, flush=True)
+
+
 def save_candidate(payload, destination):
     from app.dataset_artifacts import replace_retry
     pending = destination.with_suffix('.pt.partial')
@@ -1301,6 +1331,8 @@ def main() -> None:
             if not player.get("champion_id"):
                 champ_ids.add(abs(hash(player.get("champion") or "")) % 10000 + 1)
     print(f"train {n_train} shops  val {len(val)} shops", flush=True)
+
+    training_log_banner("open")
 
     base = baseline_guesses(by_champ, global_counts, val)
     b1, b3 = score_guesses(val, base)
@@ -1477,6 +1509,7 @@ def main() -> None:
     tau = BASKET_THRESHOLD if generation else calibrate_threshold(model, val_ds, val, label_ids, dragon)
     baskets = predict_baskets(model, val_ds, device, label_ids, dragon, threshold=tau)
     score_pred_baskets(val, baskets, tau)
+    training_log_banner("close")
 
     save_candidate(
         {
