@@ -1,10 +1,10 @@
 # Build Tracker
 
-An AI shop advisor for League of Legends. While you play, it answers one question in real time:
+An AI shop advisor for League of Legends. At an explicit shop decision, it answers one question:
 
-> **"Given that a KR Challenger — a really good player — visited the shop (including basing and buying nothing), what is the optimal action?"**
+> **"What did high-elo players historically buy in similar reconstructed shop states?"**
 
-It shows **Optimal buys** (always affordable with your current gold, each with an arrow to the full item it builds toward), or a **SAVE** row when holding your gold is the Challenger play. Behind it: a transformer trained on ~1.3M shop decisions from Challenger/GM games (KR + EUW), retrained nightly.
+This is behavioural imitation, not counterfactual optimisation: the data records one player's action, not whether that action was best. The advisor only renders an option after the player starts a shop-decision session; it records the exact wallet and observed follow-up purchase locally for beta evaluation.
 
 ![panel](https://ddragon.leagueoflegends.com/cdn/img/perk-images/StatMods/StatModsAdaptiveForceIcon.png)
 
@@ -34,7 +34,11 @@ python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 ```
 
-**Step 2 —** download `prefix_model.pt` from the [latest release](https://github.com/Javiops/build_tracker/releases) and put it in the repo's `data\ml\` folder (create it if needed).
+**Step 2 —** install a *promoted pair* from the beta release: both
+`prefix_model.pt` and its matching `deployment_manifest.json` belong in
+`data\ml\`. The app refuses an orphaned or legacy model on purpose: a served
+artifact must be bound to a frozen-validation, displayed-policy report and an
+exact-budget pass.
 
 **Step 3 — run it:**
 
@@ -42,9 +46,9 @@ python -m venv .venv
 .venv\Scripts\python.exe -m uvicorn app.main:app
 ```
 
-Open **http://127.0.0.1:8000/live** (second monitor or alt-tab), start any game — including Practice Tool — and recommendations appear a few seconds after loading in. Note: custom 1v1s and Practice Tool report no positions and few players, so matchup-aware suggestions only shine in real games with full lobbies.
+Open **http://127.0.0.1:8000/live** (second monitor or alt-tab), start any game, then click **I’m deciding in shop** only when the shop is open and you are choosing. A purchase ends that 90-second session; a timeout records a no-buy. No recommendation is generated while you are playing normally. Note: custom 1v1s and Practice Tool report no positions and few players, so matchup-aware suggestions only shine in real games with full lobbies.
 
-**In-game overlay**: run `start_overlay.bat` for a draggable always-on-top widget over the game itself (like Porofessor/Blitz), showing three ways to play each shop visit — best pick, a strong alternative, or hold your gold. Requires League's display mode set to **Borderless** (or Windowed); exclusive Fullscreen cannot be drawn over. Drag to move, ✕ to close. It starts the local server automatically if needed.
+**In-game overlay**: run `start_overlay.bat` for a draggable always-on-top widget over the game itself. It asks the player to open an explicit shop-decision session, then shows a first line and legal alternatives. The hold card is experimental: historic no-buy labels are limited to post-death cases, while prospective sessions collect the missing manual no-buys. Requires League's display mode set to **Borderless** (or Windowed); exclusive Fullscreen cannot be drawn over.
 
 ## Collecting data / training your own (API key required)
 
@@ -60,6 +64,6 @@ Put a Riot API key in `.env` (`RIOT_API_KEY=RGAPI-...`, see `.env.example`):
 
 ## How it works
 
-Riot match timelines are replayed into **shop visits** (inventory before/after, gold, all ten players' builds, objectives). A small transformer over the 10-player board — the shopper as its own token, the lane opponent specially marked — predicts the visit's full basket under multi-label loss, with affordability masking from recipe-aware gold math. "Save" is a first-class action learned from respawn-with-gold-and-bought-nothing states. The decoder is budget-, slot-, and build-plan-constrained, with thresholds self-calibrated at train time.
+Riot match timelines are replayed into **shop visits** (inventory before/after, gold, all ten players' builds, objectives). A small transformer over the 10-player board — the shopper as its own token, the lane opponent specially marked — predicts the visit's full basket under multi-label loss, with affordability masking from recipe-aware gold math. Historic `SAVE` labels are specifically respawn-with-gold-and-bought-nothing states; they do not observe every manual recall no-buy. The decoder is budget- and slot-constrained. Plan arrows come from the directly supervised next-final head at the observed state, never a fabricated high-gold state.
 
-Current honest metrics (match-held-out test, vs a champion-frequency baseline at 0.13/0.30): **top-1 0.58, top-3 0.83**; save decisions 0.39/0.75.
+Canonical-item top-k and champion-frequency comparisons are training diagnostics, not live-policy performance. Candidate selection uses a frozen validation split, the displayed-policy evaluator, a train-only conditional multiset baseline, and an explicit serving-promotion manifest. There is no validated online-performance or causal-outcome claim.

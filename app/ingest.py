@@ -144,6 +144,10 @@ def ingest_faker(
 
 
 if __name__ == "__main__":
+    # Held until process exit, including on exceptions. Existing running
+    # collectors predate this lease and must also be checked by the supervisor.
+    from app.collector_lock import CollectorLease
+    _collector_lease = CollectorLease()
     import argparse
     import json
 
@@ -153,7 +157,7 @@ if __name__ == "__main__":
     parser.add_argument("--ladder", action="store_true", help="Pull top solo ladder for a region this patch")
     parser.add_argument("--region", default="kr", choices=("kr", "euw", "both"), help="Ladder server: kr, euw, or both")
     parser.add_argument("--size", type=int, default=500, help="Ladder size (0 = all of the selected tiers)")
-    parser.add_argument("--patch", default=None, help="Patch like 16.17 (default: latest Data Dragon)")
+    parser.add_argument("--patch", default=None, help="Reviewed patch(s), e.g. 16.18 or 16.17,16.18; default: configured current ingest patch")
     parser.add_argument(
         "--daily",
         action="store_true",
@@ -218,4 +222,3 @@ if __name__ == "__main__":
             ingest_ladder(region=region, **kwargs)
     else:
         ingest_faker(count=args.count, progress=log, force=args.force)
-

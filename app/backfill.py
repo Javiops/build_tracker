@@ -4,7 +4,7 @@ import json
 from collections.abc import Callable
 
 from app.config import DATA_DIR
-from app.db import db, init_db, insert_game, insert_perspectives, now_iso, set_meta, upsert_player
+from app.db import db, init_db, insert_reconstruction, now_iso, set_meta, upsert_player
 from app.ddragon import DataDragon
 from app.ladder import _player_from_match, routing_for_match_id
 from app.reconstruct import reconstruct_game, reconstruct_visits
@@ -35,7 +35,6 @@ def _fill_match(client: RiotClient, dragon: DataDragon, match_id: str) -> int:
     for participant in participants:
         upsert_player(_player_from_match(participant, platform, regional))
     game, events = reconstruct_game(match, timeline, dragon)
-    insert_game(game, events)
     entries = []
     for participant in participants:
         puuid = participant.get("puuid")
@@ -43,8 +42,7 @@ def _fill_match(client: RiotClient, dragon: DataDragon, match_id: str) -> int:
             continue
         match_row, visits = reconstruct_visits(match, timeline, puuid, dragon)
         entries.append((match_row, visits))
-    if entries:
-        insert_perspectives(entries)
+    insert_reconstruction(game, events, entries)
     shoppers = len({e.get("puuid") for e in events if e.get("type") == "shop" and e.get("puuid")})
     return shoppers
 

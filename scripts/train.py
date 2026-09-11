@@ -137,6 +137,8 @@ def per_champ(test: list[dict], guesses: list[list[int]], limit: int = 8) -> Non
 
 
 def main() -> None:
+    from app.pipeline_guard import require_pipeline_clear
+    require_pipeline_clear("comparison training")
     train_path = ML_DIR / "visits_train.jsonl"
     test_path = ML_DIR / "visits_test.jsonl"
     if not train_path.exists() or not test_path.exists():

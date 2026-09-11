@@ -1,0 +1,49 @@
+Phase 0 — 2026-09-10. CPU-only; original output below.
+
+test_shop_econ.py — exit 0
+ok shop_econ
+
+test_visits.py — exit 0
+ok 3 visits; mid-shop after [1056, 1001]
+ok complete-item before [3145, 3113] after [4646]
+ok support chain atlas then celestial
+ok narrator [('shop', 'Locke'), ('shop', 'Ahri')]
+ok save visit: rich fountain no-buy emitted, poor/buying deaths skipped
+
+test_gold_causal.py — exit 0
+baseline gold_est = 735 (prequential-v2), gap {'frame_ts': 120000, 'bounty': 0, 'spent': 0, 'prior_residual': 579, 'version': 'prequential-v2'}
+ok gold_est is causal: future frames and events cannot move it
+   controls: prior income 600, +bounty 1035, -spend 385
+
+test_audit.py — exit 0
+ok parity: one function sets featurization for training, serving and evals
+ok gold gate: GOLDX refuses untagged/legacy rows instead of mixing regimes
+
+========================================================================
+SPLIT REDRAWN — evaluation version 2
+Results from earlier versions are NOT comparable with results from this
+one: the test set is a different set of games. Previous manifest: split_manifest_v1.json
+========================================================================
+
+ok split: temporal ordering holds, newer games are excluded not trained on, rebuild is versioned
+ok save: no_buy_death and ward_only are different actions end to end
+ok policy eval: labels are stripped, and stripping actually removes the hint
+ok policy metrics: point estimate and CI95 share one population; paired diff works
+ok save-card precision: counts a displayed alternative without changing lead-action metrics
+ok stability: inventory+level equality is not called an unchanged game state
+
+audit suite passed
+
+test_live_predict.py — exit 0
+C:\Users\Javier\build_tracker\.venv\Lib\site-packages\torch\nn\modules\transformer.py:529: UserWarning: The PyTorch API of nested tensors is in prototype stage and will change in the near future. We recommend specifying layout=torch.jagged when constructing a nested tensor, as this layout receives active development, has better operator coverage, and works with torch.compile. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\aten\src\ATen\NestedTensorImpl.cpp:181.)
+  output = torch._nested_tensor_from_mask(
+ok live predict — prefix_model.pt (trained 2026-09-09T03:11:36), gold_x=True posw=8:24 tau=0.75 — 4 snapshots
+
+test_live_api.py — exit 0
+ok live API: no model call outside an explicit shop session; purchase resolves the session
+
+test_live_sessions.py — exit 0
+ok explicit shop sessions: query, purchase, no-buy timeout, abandonment, and local telemetry
+
+test_artifact_provenance.py — exit 0
+ok artifact provenance: frozen split, causal gold, and deliberate serving promotion are mandatory

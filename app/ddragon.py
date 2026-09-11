@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import os
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 
 import httpx
 
-from app.config import CACHE_DIR
+from app.config import CACHE_DIR, PATCH_DATA_VERSIONS
 
 DDRAGON_VERSIONS = "https://ddragon.leagueoflegends.com/api/versions.json"
 
@@ -22,6 +25,12 @@ class DataDragon:
             CACHE_DIR / f"champion-{self.version}.json",
             f"https://ddragon.leagueoflegends.com/cdn/{self.version}/data/en_US/champion.json",
         )
+        if self._items.get("version") != self.version or self._champions.get("version") != self.version:
+            raise ValueError(f"Static-data payload version does not match {self.version}")
+        self.signature = hashlib.sha256(json.dumps(
+            {"items": self._items, "champions": self._champions},
+            sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
         self._champ_by_id = {
             int(c["key"]): c for c in self._champions.get("data", {}).values()
         }
@@ -117,7 +126,12 @@ class DataDragon:
         from_items = data.get("from") or []
         is_trinket = "Trinket" in tags
         is_consumable = "Consumable" in tags
-        is_boots = "Boots" in tags
+        # Some reviewed quest upgrades (e.g. 3172 on 16.18.1) omit the Boots
+        # tag. Their direct boot recipe still establishes the item family.
+        is_boots = "Boots" in tags or any(
+            "Boots" in (self.item(int(i)) or {}).get("tags", [])
+            for i in from_items
+        )
         # Final items either sit deep in the tree OR combine straight from
         # basics and build into nothing (Rabadon's, Infinity Edge are depth 2).
         builds_into = data.get("into") or []
@@ -133,7 +147,7 @@ class DataDragon:
             or (
                 not is_support_gold
                 and not is_pink_ward
-                and (gold == 0 or purchasable is False)
+                and (gold == 0 or (purchasable is False and not data.get("specialRecipe")))
             )
         )
         cached = {
@@ -147,14 +161,40 @@ class DataDragon:
             "is_completed": is_completed,
             "is_component": is_component,
             "skip": skip,
+            "target_skip": skip or purchasable is False,
         }
         self._classify_cache[item_id] = cached
         return cached
+
+    def free_boot_upgrades(self) -> dict[int, int]:
+        """Reviewed quest upgrades, bound to this exact static-data payload."""
+        if not hasattr(self, '_free_boot_upgrades'):
+            result = {}
+            for raw_id, item in self._items['data'].items():
+                recipe = item.get('from') or []
+                if len(recipe) != 1 or item.get('gold', {}).get('base') != 0 or not item.get('maps', {}).get('11'):
+                    continue
+                base = int(recipe[0])
+                if 'Boots' not in (self.item(base) or {}).get('tags', []):
+                    continue
+                if base in result:
+                    raise ValueError(f'Ambiguous free boot upgrade for {base} in {self.version}')
+                result[base] = int(raw_id)
+            self._free_boot_upgrades = result
+        return dict(self._free_boot_upgrades)
 
 
 def latest_version() -> str:
     versions = load_json(CACHE_DIR / "versions.json", DDRAGON_VERSIONS)
     return versions[0]
+
+
+@lru_cache(maxsize=8)
+def dragon_for_patch(patch: str) -> DataDragon:
+    version = PATCH_DATA_VERSIONS.get(patch)
+    if version is None:
+        raise ValueError(f"No reviewed Data Dragon version for patch {patch!r}")
+    return DataDragon(version)
 
 
 def load_json(path: Path, url: str) -> dict | list:
@@ -163,8 +203,19 @@ def load_json(path: Path, url: str) -> dict | list:
     with httpx.Client(timeout=30.0) as client:
         response = client.get(url)
         response.raise_for_status()
-        path.write_text(response.text, encoding="utf-8")
-        return response.json()
+        payload = response.json()  # validate JSON before publishing the cache
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                             prefix=path.name + ".", suffix=".tmp", delete=False) as handle:
+                temporary = Path(handle.name)
+                json.dump(payload, handle, ensure_ascii=False)
+            os.replace(temporary, path)
+        finally:
+            if temporary is not None and temporary.exists():
+                temporary.unlink()
+        return payload
 
 
 @lru_cache(maxsize=1)

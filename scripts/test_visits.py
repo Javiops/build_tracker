@@ -178,8 +178,10 @@ late = json.loads(support_visits[-1]["board_json"])
 early_bard = next(p for p in early if p["champion_name"] == "Bard")
 late_bard = next(p for p in late if p["champion_name"] == "Bard")
 assert [i["item_id"] for i in early_bard["items"] if not i["skip"]] == [3865], early_bard["items"]
-assert 3869 in [i["item_id"] for i in late_bard["items"] if not i["skip"]], late_bard["items"]
-print("ok support chain atlas then celestial")
+assert 3867 in [i["item_id"] for i in late_bard["items"] if not i["skip"]], late_bard["items"]
+assert next(i for i in late_bard["items"] if i['item_id'] == 3867)['inference'] == 'support-tier-proxy-v1'
+assert 3869 not in [i['item_id'] for i in late_bard['items']], 'future DTO choice leaked'
+print("ok support chain: granted Atlas, causal tier proxy, no final-DTO choice")
 
 from app.reconstruct import reconstruct_game
 

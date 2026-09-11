@@ -13,6 +13,7 @@ from app.config import DEFAULT_MATCH_COUNT, FAKER, WEB_DIR
 from app.db import export_all, get_match, get_meta, init_db, list_matches, list_players, summary
 from app.ddragon import latest_version
 from app.ingest import has_api_key, ingest_faker
+from app.telemetry import ShopDecisionSessions
 
 
 @asynccontextmanager
@@ -40,6 +41,8 @@ def live_page() -> FileResponse:
 
 
 _predictor = None
+_live_dragon = None
+_shop_sessions = ShopDecisionSessions()
 
 
 def _get_predictor():
@@ -51,41 +54,92 @@ def _get_predictor():
     return _predictor
 
 
-@app.get("/api/live")
-def api_live() -> dict:
-    from app.live import fetch_snapshot, snapshot_to_row
+def _get_live_dragon():
+    """Shape an idle live state without loading a model or emitting advice."""
+    global _live_dragon
+    if _live_dragon is None:
+        from app.ddragon import default_dragon
 
-    try:
-        predictor = _get_predictor()
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
-    snap = fetch_snapshot()
-    if not snap:
-        return {"in_game": False}
-    row = snapshot_to_row(snap, predictor.dragon)
-    if not row:
-        return {"in_game": False}
-    # live gold is exact: every "optimal buy" must be affordable right now.
-    # The options view is the UI; the legacy predict() fields were dropped
-    # from the payload (they doubled the per-poll model work).
-    options = predictor.predict_options(row, budget_slack=0)
+        _live_dragon = default_dragon()
+    return _live_dragon
+
+
+def _live_payload(row: dict, dragon, session: dict | None = None, predictor=None) -> dict:
+    """One response schema for idle and explicit-shop decision states.
+
+    Crucially, options are absent outside a user-started shop session.  The
+    local client API has no reliable location/shop flag, so guessing would put
+    a shop-only model in the wrong serving population.
+    """
+    active = bool(session and session.get("active"))
+    provenance = getattr(predictor, "provenance", None) if predictor else None
     return {
         "in_game": True,
-        "options": options,
-        "save": None,
+        "decision_session": session,
+        "advice_ready": active,
+        "options": (session or {}).get("options", []) if active else [],
         "champion": row["champion"],
         "role": row["role"],
         "gold": row["gold"],
         "level": row["level"],
         "game_time_s": row["ts"] // 1000,
-        "inventory": [
-            {"item_id": i, "name": predictor.dragon.item_name(i)} for i in row["inventory"]
-        ],
+        "inventory": [{"item_id": i, "name": dragon.item_name(i)} for i in row["inventory"]],
+        "ddragon_version": dragon.version,
+        "model_trained_at": getattr(predictor, "trained_at", None),
+        "model_provenance": provenance,
+        # Legacy payload fields deliberately stay inert: third-party panels
+        # cannot accidentally treat continuous live ranking as shop advice.
+        "save": None,
         "top": [],
         "basket": [],
-        "ddragon_version": predictor.dragon.version,
-        "model_trained_at": predictor.trained_at,
     }
+
+
+@app.get("/api/live")
+def api_live() -> dict:
+    from app.live import fetch_snapshot, snapshot_to_row
+
+    snap = fetch_snapshot()
+    if not snap:
+        return {"in_game": False}
+    dragon = _get_live_dragon()
+    row = snapshot_to_row(snap, dragon)
+    if not row:
+        return {"in_game": False}
+    session = _shop_sessions.observe(row)
+    return _live_payload(row, dragon, session=session, predictor=_predictor)
+
+
+@app.post("/api/live/session")
+def start_live_shop_session() -> dict:
+    """Start an explicit, logged shop-decision session and compute advice once."""
+    from app.live import fetch_snapshot, snapshot_to_row
+
+    snap = fetch_snapshot()
+    if not snap:
+        raise HTTPException(status_code=409, detail="No game detected.")
+    predictor = _get_predictor()
+    row = snapshot_to_row(snap, predictor.dragon)
+    if not row:
+        raise HTTPException(status_code=409, detail="Could not identify the active player.")
+    if not predictor.deployment.get("eligible"):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Advice is unavailable because the served model has not passed the "
+                f"promotion gate: {predictor.deployment.get('reason', 'unknown reason')}."
+            ),
+        )
+    # A hold card is only permitted inside this explicit session; the legacy
+    # save target is post-death no-buy, not every possible recall.
+    options = predictor.predict_options(row, budget_slack=0, allow_save=True)
+    session = _shop_sessions.start(row, options, predictor.telemetry_metadata())
+    return _live_payload(row, predictor.dragon, session=session, predictor=predictor)
+
+
+@app.delete("/api/live/session")
+def cancel_live_shop_session() -> dict:
+    return {"cancelled": _shop_sessions.cancel()}
 
 
 @app.get("/api/status")

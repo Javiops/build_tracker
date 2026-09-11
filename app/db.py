@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -408,10 +408,19 @@ def insert_match_and_visits(match: dict, visits: list[dict]) -> None:
     insert_perspectives([(match, visits)])
 
 
-def insert_perspectives(entries: list[tuple[dict, list[dict]]]) -> None:
+def insert_reconstruction(game: dict, events: list[dict], entries: list[tuple[dict, list[dict]]]) -> None:
+    """Publish a reconstructed game and its requested perspectives atomically."""
+    if any(m["match_id"] != game["match_id"] or m["patch"] != game["patch"] for m, _ in entries):
+        raise ValueError("Reconstruction contains mismatched game IDs or patches")
+    with db() as conn:
+        _write_game(conn, game, events)
+        insert_perspectives(entries, _conn=conn)
+
+
+def insert_perspectives(entries: list[tuple[dict, list[dict]]], *, _conn=None) -> None:
     if not entries:
         return
-    with db() as conn:
+    with (nullcontext(_conn) if _conn is not None else db()) as conn:
         for match, visits in entries:
             conn.execute(
                 """

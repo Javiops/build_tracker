@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 from app.config import DATA_DIR, RANKED_SOLO_QUEUE, patch_start_unix
 from app.db import db, init_db, now_iso, set_meta, upsert_player
-from app.ddragon import DataDragon, latest_version
+from app.ddragon import DataDragon
 from app.ladder import _ingest_match_perspectives
 from app.reconstruct import patch_from_version
 from app.riot import RiotClient, RiotError
@@ -227,7 +227,8 @@ def ingest_pros(
 ) -> dict:
     init_db()
     emit = progress or (lambda _event: None)
-    patch = patch or patch_from_version(latest_version())
+    from app.config import selected_patches
+    patch = ",".join(selected_patches(patch))
     start_time = patch_start_unix(patch)
     client = RiotClient()
     dragon = DataDragon()

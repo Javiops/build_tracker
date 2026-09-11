@@ -1,4 +1,4 @@
-"""Train a small sequence model over earlier shops (the prefix) and score it like the forest."""
+﻿"""Train a small sequence model over earlier shops (the prefix) and score it like the forest."""
 
 from __future__ import annotations
 
@@ -21,13 +21,18 @@ if str(ROOT) not in sys.path:
 import math
 
 from app.config import DATA_DIR
-from app.ddragon import default_dragon
-from app.shop_econ import GOLD_DRIFT, PINK, SAVE_ITEM, combine_cost, damage_profile
+from app.ddragon import default_dragon, dragon_for_patch
+from app.reconstruct import RECONSTRUCTION_VERSION
+from app.shop_econ import GOLD_DRIFT, PINK, SAVE_ITEM, combine_cost, damage_profile, feature_inventory
+from app.purchase_multiset import label_counts as purchase_counts, expanded_labels, TARGET_ENCODING
 
-ML_DIR = DATA_DIR / "ml"
+ML_DIR = Path(os.environ["PREFIX_ML_DIR"]).resolve() if os.environ.get("PREFIX_ML_DIR") else DATA_DIR / "ml"
+RUN_DIR = Path(os.environ.get("PREFIX_RUN_DIR",str(ML_DIR))).resolve()
+SPLIT_MANIFEST_PATH = ML_DIR / "split_manifest.json"
 MAX_OTHERS = 9
 BOARD = MAX_OTHERS + 1  # token 0 is the shopper, then the 9 others
 MAX_ITEMS = 6
+INVENTORY_ENCODING = 'legacy-order-v1'
 BATCH = 256
 # Experiment knobs (env): PREFIX_EPOCHS, PREFIX_COSINE=1, PREFIX_EXTRAS=0 to
 # zero out the game-state/damage-profile features while keeping QUERY_DIM fixed,
@@ -36,7 +41,7 @@ BATCH = 256
 # Architecture knobs: PREFIX_DMODEL, PREFIX_LAYERS, PREFIX_FF, PREFIX_HEADS.
 # Feature knobs: PREFIX_GOLDEST=1 (interpolated arrival gold replaces the
 # frame-stale value as the budget feature), PREFIX_RUNES=1 (keystone/secondary
-# tree/summoner spells in the query — requires rune-backfilled export).
+# tree/summoner spells in the query â€” requires rune-backfilled export).
 D_MODEL = int(os.environ.get("PREFIX_DMODEL", "64"))
 N_LAYERS = int(os.environ.get("PREFIX_LAYERS", "2"))
 FF_DIM = int(os.environ.get("PREFIX_FF", "128"))
@@ -46,13 +51,39 @@ USE_COSINE = os.environ.get("PREFIX_COSINE") == "1"
 USE_EXTRAS = os.environ.get("PREFIX_EXTRAS", "1") != "0"
 USE_HISTORY = os.environ.get("PREFIX_HISTORY") == "1"
 USE_GOLDEST = os.environ.get("PREFIX_GOLDEST") == "1"
+# PREFIX_GOLDX=1: the budget (query feature, legality mask and affordability
+# block) comes from `gold_est` instead of the stale frame gold, so training sits
+# closer to the regime live inference runs in. This is NOT "exact gold": offline
+# rows carry a causal approximation (prequential-v2), only live rows carry the
+# client's exact value (live-exact-v2).
+#
+# Mixing estimator generations silently is how a leak survives a refactor, so a
+# row must declare which one produced it. Rows tagged otherwise â€” including the
+# superseded leaky-v1 walk, which shipped untagged â€” are refused outright rather
+# than falling back to stale gold, because a half-causal corpus is not a regime
+# anyone can reason about.
+USE_GOLDX = os.environ.get("PREFIX_GOLDX") == "1"
+ALLOWED_GOLD_VERSIONS = ("prequential-v2", "live-exact-v2")
 USE_RUNES = os.environ.get("PREFIX_RUNES") == "1"
-# PREFIX_POSW=1 trains plain unweighted BCE (no rare-item emphasis) — the
+# PREFIX_POSW=1 trains plain unweighted BCE (no rare-item emphasis) â€” the
 # control experiment for confidence trustworthiness; default keeps the
 # engraved low cap of 8.
 POS_WEIGHT_CAP = float(os.environ.get("PREFIX_POSW", "8"))
+# PREFIX_POSW_SCHED="lo:hi" replaces the single cap with a per-label cap that
+# rises with rarity (log-frequency interpolation between lo for the most
+# frequent label and hi for the rarest). Motivation: the 2026-09-06 sweep shows
+# component-heavy rare classes peaking at cap 24 while frequent classes (SAVE,
+# wards) are honest at 8 â€” one scalar can't sit on both curve peaks. Off by
+# default; needs a validation run to beat the deployed H24 before shipping.
+POSW_SCHED = os.environ.get("PREFIX_POSW_SCHED", "")
+# PREFIX_POSW_CUSTOM=1: hand-shaped per-label caps (2026-09-08) â€” SAVE + wards
+# pinned to the honest 8 (calibrated no-spend ranking is engraved), the
+# mid-frequency band raised to the sweep's peak 24 (that's where component
+# gains live), and the rarest tail tapered back to 12 (rare-item confidence
+# inflation "highlights mistakes"). A bump, not a monotone ramp like POSW_SCHED.
+POSW_CUSTOM = os.environ.get("PREFIX_POSW_CUSTOM") == "1"
 # PREFIX_INIT_FROM=<artifact in data/ml> warm-starts from an existing model;
-# PREFIX_FREEZE=1 then trains ONLY the save/target heads on the frozen trunk —
+# PREFIX_FREEZE=1 then trains ONLY the save/target heads on the frozen trunk â€”
 # auxiliary heads measurably drag the trunk when trained jointly (models E/F),
 # so heads are grafted onto a finished trunk instead.
 INIT_FROM = os.environ.get("PREFIX_INIT_FROM", "")
@@ -68,7 +99,10 @@ RUNE_DIM = (len(KEYSTONE_IDS) + 1) + (len(STYLE_IDS) + 1) + (len(SUMM_IDS) + 1)
 BASE_QUERY_DIM = 26
 QUERY_DIM = BASE_QUERY_DIM + (RUNE_DIM if USE_RUNES else 0)
 BASKET_THRESHOLD = 0.8  # swept 0.5-0.8 on the honest model: best F1/exact-set
-CACHE_VERSION = "v7"  # v7: next-completed-target labels for the plan head
+# v10: source-backed targets and causal support-tier inputs invalidate old caches.
+# Gold input is versioned (prequential-v2 replaces the leaky-v1 walk), so
+# tensors built under the old semantics must never be reused.
+CACHE_VERSION = "v11-explicit-multisets"
 COUNT_LOSS_W = 0.25  # weight of the copy-count CE next to the basket BCE
 # Aux-head loss weights. Joint training taxes the trunk 4-5pts at ANY weight
 # (models E/F), so the canonical pipeline is two-stage: trunk with these at 0,
@@ -77,16 +111,17 @@ SAVE_LOSS_W = float(os.environ.get("PREFIX_SAVEW", "0"))
 TARGET_LOSS_W = float(os.environ.get("PREFIX_TARGETW", "0"))
 # Decode blend: lift each item's logit by log of the target-head probability
 # mass of the finals its purchase advances. Measured net-negative on the strict
-# metric (ward confound removed) — default off; the head still ships for UI.
+# metric (ward confound removed) â€” default off; the head still ships for UI.
 TARGET_BLEND = float(os.environ.get("PREFIX_TBLEND", "0"))
-# Save splice replaces SAVE's pseudo-item ranking with the head — measured
+# Save splice replaces SAVE's pseudo-item ranking with the head â€” measured
 # worse on the mixed ward/no-buy save class, so default off (head feeds the
 # calibrated gate + display instead).
 SAVE_SPLICE = os.environ.get("PREFIX_SPLICE") == "1"
 MAX_COPIES = 3
-# The item head trains with pos_weight, which tilts its logits by +ln(w)
-# relative to true probabilities. The save head trains unweighted (honest);
-# to let it compete in the item ranking, splice it in with the same tilt.
+# The item head trains with pos_weight, which shifts its population optimum by
+# +ln(w). In a shared masked decoder that does NOT make the outputs calibrated
+# probabilities; they are ranking scores. The save head trains unweighted on
+# the narrower post-death target; splice only preserves legacy rank scale.
 SAVE_TILT = math.log(max(POS_WEIGHT_CAP, 1.0))
 
 
@@ -118,9 +153,9 @@ def target_matrix(labels: list[int], dragon) -> torch.Tensor:
                 if j is not None:
                     M[k, j] = 1.0
     # Standalone value items (no recipe in either direction: control wards,
-    # Dark Seal, SAVE sentinel) are plan-neutral — mass 1 so the blend never
+    # Dark Seal, SAVE sentinel) are plan-neutral â€” mass 1 so the blend never
     # penalizes them. Without this the blend crushed ward-only save visits
-    # (Control Ward advances no final → mass ~0 → logit −4.6).
+    # (Control Ward advances no final â†’ mass ~0 â†’ logit âˆ’4.6).
     for j, item_id in enumerate(labels):
         data = dragon.item(item_id) or {}
         if not data.get("from") and not data.get("into"):
@@ -131,10 +166,86 @@ ROLES = {"TOP": 1, "JUNGLE": 2, "MIDDLE": 3, "BOTTOM": 4, "UTILITY": 5}
 SIDE_ALLY, SIDE_ENEMY, SIDE_SELF, SIDE_LANE_OPP, SIDE_HISTORY = 1, 2, 3, 4, 5
 
 
-def stream_rows(path: Path):
+def apply_config(config: dict) -> None:
+    """Point the module-level featurization knobs at what an artifact was
+    trained with. Predictor AND every eval harness must go through this: a
+    harness that forgets one flag silently scores the model in a regime it was
+    never trained in, and nothing crashes. (eval_live_gold_sampled.py restored
+    six flags and dropped USE_GOLDX â€” caught in review 2026-09-09.)"""
+    global USE_EXTRAS, USE_HISTORY, USE_GOLDEST, USE_GOLDX, USE_RUNES, QUERY_DIM, SAVE_SPLICE, MAX_ITEMS, MAX_COPIES, INVENTORY_ENCODING
+    USE_EXTRAS = bool(config.get("extras", True))
+    USE_HISTORY = bool(config.get("history", False))
+    USE_GOLDEST = bool(config.get("gold_est", False))
+    USE_GOLDX = bool(config.get("gold_x", False))
+    USE_RUNES = bool(config.get("runes", False))
+    QUERY_DIM = int(config.get("query_dim", BASE_QUERY_DIM))
+    SAVE_SPLICE = bool(config.get("save_splice", False))
+    MAX_ITEMS = int(config.get('max_items',6))
+    MAX_COPIES = int(config.get('max_copies',3))
+    INVENTORY_ENCODING = config.get('inventory_encoding','legacy-order-v1')
+
+
+def training_provenance() -> dict:
+    """Bind a new artifact to the frozen export that trained it.
+
+    Metrics printed by this trainer are canonical-label diagnostics on
+    validation. They deliberately do not certify the displayed policy; that
+    requires scripts/eval_policy.py against this exact manifest.
+    """
+    if not SPLIT_MANIFEST_PATH.exists():
+        raise SystemExit(
+            f"{SPLIT_MANIFEST_PATH} missing. Re-export with scripts/baseline.py before training; "
+            "new artifacts may not be detached from their frozen split."
+        )
+    manifest_text = SPLIT_MANIFEST_PATH.read_text(encoding="utf-8")
+    try:
+        manifest = json.loads(manifest_text)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"invalid split manifest {SPLIT_MANIFEST_PATH}: {exc}") from exc
+    fingerprint = manifest.get("export_fingerprint")
+    if not fingerprint:
+        raise SystemExit("split manifest has no export_fingerprint; rebuild the export before training.")
+    versions = manifest.get("gold_est_versions") or {}
+    context_versions = manifest.get("reconstruction_versions") or {}
+    if set(context_versions) != {RECONSTRUCTION_VERSION} or context_versions[RECONSTRUCTION_VERSION] <= 0:
+        raise SystemExit(
+            f"Training requires {RECONSTRUCTION_VERSION} reconstruction; found {context_versions!r}. "
+            "Repair and re-export the corpus first."
+        )
+    dragon = dragon_for_patch(manifest.get("patch"))
+    if manifest.get("ddragon_version") != dragon.version or manifest.get("static_data_sha256") != dragon.signature:
+        raise SystemExit("Export static-data binding does not match the reviewed patch data")
+    if USE_GOLDX and set(versions) != {"prequential-v2"}:
+        raise SystemExit(
+            "PREFIX_GOLDX=1 requires an export containing only prequential-v2 gold estimates; "
+            f"found {versions!r}. Re-reconstruct and re-export first."
+        )
+    return {
+        "schema_version": 1,
+        "status": "probe_only" if manifest.get("probe") else "declared",
+        "probe": bool(manifest.get("probe")),
+        "manifest_sha256": hashlib.sha256(manifest_text.encode()).hexdigest(),
+        "export_fingerprint": fingerprint,
+        "eval_version": manifest.get("eval_version"),
+        "training_split": "train",
+        "selection_split": "validation",
+        "gold_input": "prequential-v2" if USE_GOLDX else "stale-frame-gold",
+        "gold_est_versions": versions,
+        "reconstruction_version": RECONSTRUCTION_VERSION,
+        "patch": manifest["patch"],
+        "ddragon_version": dragon.version,
+        "static_data_sha256": dragon.signature,
+        "canonical_metrics": "validation diagnostic only; not displayed-policy evidence",
+    }
+
+
+def stream_rows(path: Path, extra_keys: tuple[str, ...] = ()):
     """Yield visit rows one at a time. The full export no longer fits in RAM as
-    Python dicts (1.19M rows ≈ 13 GB on a 16 GB machine — it thrashes), so no
-    code path may materialize the whole file; scan it in passes instead."""
+    Python dicts (1.19M rows â‰ˆ 13 GB on a 16 GB machine â€” it thrashes), so no
+    code path may materialize the whole file; scan it in passes instead.
+
+    extra_keys is for eval-only fields (e.g. gold_arrival_true) â€” nothing in
+    the training path may pass it."""
     keep = (
         "match_id",
         "champion",
@@ -150,6 +261,10 @@ def stream_rows(path: Path):
         "kills",
         "deaths",
         "inventory",
+        "bot_quest_complete",
+        "slot_state_version",
+        "unmodeled_regular_slots",
+        "role_slot_inventory_unknown",
         "label_id",
         "label_ids",
         "can_complete",
@@ -158,10 +273,15 @@ def stream_rows(path: Path):
         "gold_after_complete",
         "n_inventory",
         "decision",
+        "save_kind",
         "keystone_id",
         "sub_style",
         "summ1",
         "summ2",
+        # causal pre-decision gold estimate + the tag that says which estimator
+        # produced it; GOLDX refuses anything not in ALLOWED_GOLD_VERSIONS
+        "gold_est",
+        "gold_est_version",
     )
     with path.open(encoding="utf-8") as handle:
         for line in handle:
@@ -170,28 +290,29 @@ def stream_rows(path: Path):
                 continue
             raw = json.loads(line)
             others = []
-            for player in (raw.get("others") or [])[:MAX_OTHERS]:
+            for player in raw.get("others") or []:
                 others.append(
                     {
                         "champion": player.get("champion") or "",
                         "champion_id": player.get("champion_id"),
                         "team_id": player.get("team_id"),
                         "role": player.get("role") or "",
+                        "bot_quest_complete": player.get("bot_quest_complete"),
+                        "slot_state_version": player.get("slot_state_version"),
                         "level": player.get("level"),
                         "gold": player.get("gold"),
-                        "items": (player.get("items") or [])[:MAX_ITEMS],
+                        "items": player.get("items") or [],
                     }
                 )
-            row = {key: raw.get(key) for key in keep}
+            row = {key: raw.get(key) for key in keep + tuple(extra_keys)}
             row["others"] = others
-            ids = raw.get("label_ids")
-            if not ids:
-                ids = [raw["label_id"]] if raw.get("label_id") else []
-            row["label_ids"] = [int(i) for i in ids if i]
+            row['label_counts'] = purchase_counts(raw)
+            row['label_ids'] = expanded_labels(raw)
+            row['target_encoding'] = raw.get('target_encoding')
             yield row
 
 
-SLIM_KEYS = ("match_id", "champion", "label_id", "label_ids", "decision")
+SLIM_KEYS = ("match_id", "champion", "label_id", "label_ids", "decision", "save_kind")
 
 
 def with_history(rows):
@@ -281,20 +402,20 @@ def score_basket(rows: list[dict], guesses: list[list[int]]) -> None:
     rec = prec = full = 0.0
     n = 0
     for row, guess in zip(rows, guesses):
-        actual = {int(i) for i in (row.get("label_ids") or [row["label_id"]]) if i}
-        pred = {int(i) for i in guess if i}
+        actual = purchase_counts(row)
+        pred = Counter(int(i) for i in guess if i)
         if not actual:
             continue
         n += 1
-        hit = len(actual & pred)
-        rec += hit / len(actual)
-        prec += hit / max(len(pred), 1)
+        hit = sum((actual & pred).values())
+        rec += hit / sum(actual.values())
+        prec += hit / max(sum(pred.values()), 1)
         full += float(actual <= pred)
     n = n or 1
     print("  basket  (all items they bought this back, vs our top 3)")
     print(f"    cover   {rec / n:.2f}   of their buys are in our top 3")
     print(f"    precision {prec / n:.2f}   of our top 3 were actually bought")
-    print(f"    full set {full / n:.2f}   we named every item they bought")
+    print(f"    full multiset {full / n:.2f}   we named every copy they bought")
 
 
 def baseline_guesses(
@@ -314,9 +435,9 @@ def _cache_path(split: str, source: Path) -> Path:
     key = (
         f"{source.name}:{stat.st_size}:{int(stat.st_mtime)}:{QUERY_DIM}:{HIST_LEN}:"
         f"{int(USE_EXTRAS)}:{int(USE_HISTORY)}:{int(USE_GOLDEST)}:{int(USE_RUNES)}:"
-        f"{GOLD_DRIFT}:{CACHE_VERSION}"
+        f"{int(USE_GOLDX)}:{GOLD_DRIFT}:{CACHE_VERSION}:{MAX_ITEMS}:{MAX_COPIES}:{INVENTORY_ENCODING}"
     )
-    return ML_DIR / f"tensors_{split}_{hashlib.md5(key.encode()).hexdigest()[:12]}.pt"
+    return RUN_DIR / f"tensors_{split}_{hashlib.md5(key.encode()).hexdigest()[:12]}.pt"
 
 
 def _dataset(split: str, source: Path, rows_factory, n: int, champ_index, item_index, label_index, dragon):
@@ -325,7 +446,7 @@ def _dataset(split: str, source: Path, rows_factory, n: int, champ_index, item_i
         print(f"loaded cached tensors {cache.name}", flush=True)
         return ShopDataset.from_cache(cache, champ_index, item_index, label_index, dragon)
     ds = ShopDataset.from_stream(rows_factory(), n, champ_index, item_index, label_index, dragon)
-    for old in ML_DIR.glob(f"tensors_{split}_*.pt"):
+    for old in RUN_DIR.glob(f"tensors_{split}_*.pt"):
         if old != cache:
             old.unlink()
     ds.save_cache(cache)
@@ -355,7 +476,7 @@ class ShopDataset:
 
     @classmethod
     def from_stream(cls, rows_iter, n: int, champ_index, item_index, label_index, dragon):
-        """Fill tensors from a row generator — never holds the rows in RAM."""
+        """Fill tensors from a row generator â€” never holds the rows in RAM."""
         ds = cls.__new__(cls)
         ds._init_meta(champ_index, item_index, label_index, dragon)
         ds._alloc(n)
@@ -373,12 +494,17 @@ class ShopDataset:
         self.dragon = dragon
         # Per-label metadata hoisted out of the row loop: prices plus the
         # purchase-block facts (completed flag, boots component set). The fill
-        # loop must never call classify/is_blocked per row x label — that is
+        # loop must never call classify/is_blocked per row x label â€” that is
         # ~200M calls over a full export.
         from app.shop_econ import components_of
 
         self._label_meta = []
         self._boots_ids: set[int] = set()
+        # recipe Counters for GOLDX affordability recompute (subset test per row)
+        self._recipes = [
+            (item_id, Counter(from_ids), base)
+            for item_id, from_ids, base in dragon.combine_recipes()
+        ]
         for item_id, idx in label_index.items():
             gold = dragon.gold_block(item_id)
             base = gold["base"]
@@ -448,9 +574,9 @@ class ShopDataset:
 
     def to_device(self, device: torch.device) -> None:
         """Park the precomputed tensors on the device (GPU) so batches index
-        there directly — the per-batch CPU gather + copy was the bottleneck."""
+        there directly â€” the per-batch CPU gather + copy was the bottleneck."""
         for name in self.TENSOR_ATTRS:
-            if name == "budget":  # read scalar-by-scalar in the basket loops — stays CPU
+            if name == "budget":  # read scalar-by-scalar in the basket loops â€” stays CPU
                 continue
             value = getattr(self, name)
             if isinstance(value, torch.Tensor):
@@ -544,17 +670,59 @@ class ShopDataset:
         }
 
     def _fill_row(self, i: int, row: dict) -> None:
+        # One featurisation path for offline and live snapshots. Do not mutate
+        # the caller's observed inventory or labels while projecting features.
+        row = {**row, "inventory": feature_inventory(row.get("inventory") or []),
+               "others": [{**p, "items": feature_inventory(p.get("items") or [])}
+                          for p in row.get("others") or []]}
+        if INVENTORY_ENCODING == 'canonical-multiset-v1':
+            row['inventory'] = sorted(row['inventory'])
+            for player in row['others']:
+                player['items'] = sorted(player['items'])
+        if max([len(row['inventory'])]+[len(p['items']) for p in row['others']]) > MAX_ITEMS:
+            raise ValueError(f"Inventory exceeds artifact capacity {MAX_ITEMS}; refusing truncation")
+        if len(row['others']) > MAX_OTHERS:
+            raise ValueError('Board exceeds the nine other participants; refusing truncation')
+        counts = purchase_counts(row)
+        if max(counts.values(),default=0) > MAX_COPIES:
+            raise ValueError(f"Purchase multiset exceeds artifact count capacity {MAX_COPIES}; refusing clipping")
+        row['label_ids'] = expanded_labels(row)
         team = row.get("team_id")
         gold = float(row.get("gold") or 0)
         inventory = [int(item_id) for item_id in (row.get("inventory") or []) if item_id]
         inv_c = Counter(inventory)
+        # GOLDX: move budget, mask and affordability onto the causal estimate
+        gold_x = None
+        if USE_GOLDX:
+            version = row.get("gold_est_version")
+            gold_x = row.get("gold_est")
+            if version not in ALLOWED_GOLD_VERSIONS or gold_x is None:
+                raise ValueError(
+                    f"PREFIX_GOLDX=1 but row {row.get('match_id')} carries "
+                    f"gold_est_version={version!r} (gold_est={gold_x!r}); allowed: "
+                    f"{ALLOWED_GOLD_VERSIONS}. Rows reconstructed before 2026-09-09 "
+                    "hold the superseded leaky-v1 estimate. Re-reconstruct the corpus "
+                    "(python -m app.ingest --backfill --refresh) and re-export before "
+                    "training with GOLDX, or train without it."
+                )
+        aff = None
+        if gold_x is not None:
+            gold = float(gold_x)
+            afford = [base for _iid, need, base in self._recipes if base <= gold and need <= inv_c]
+            cheapest = min(afford, default=0)
+            aff = {
+                "can_complete": 1.0 if afford else 0.0,
+                "n_completable": float(len(afford)),
+                "cheapest_complete": float(cheapest),
+                "gold_after_complete": gold - cheapest if cheapest else gold,
+            }
         inv_set = set(inventory)
         owned_boots = [b for b in inventory if b in self._boots_ids]
         self.budget[i] = gold
         self.inventories[i] = inventory
         allowed = gold + GOLD_DRIFT
         for item_id, idx, base, total, is_completed, boots_comps in self._label_meta:
-            # purchase blocks from precomputed metadata — no per-row classify
+            # purchase blocks from precomputed metadata â€” no per-row classify
             if is_completed and item_id in inv_set:
                 self.legal[i, idx] = False
                 continue
@@ -578,7 +746,7 @@ class ShopDataset:
         opp_pos = ex["opp_pos"]
         self.champs[i, 0] = self.champ_index.get(int(row.get("champion_id") or 0), 0)
         self.sides[i, 0] = SIDE_SELF
-        for j, item_id in enumerate(inventory[:MAX_ITEMS]):
+        for j, item_id in enumerate(inventory):
             self.items[i, 0, j] = self.item_index.get(item_id, 0)
         others = (row.get("others") or [])[:MAX_OTHERS]
         for pos, player in enumerate(others):
@@ -591,7 +759,7 @@ class ShopDataset:
                 self.sides[i, slot] = SIDE_ALLY
             else:
                 self.sides[i, slot] = SIDE_LANE_OPP if pos == opp_pos else SIDE_ENEMY
-            for j, item_id in enumerate((player.get("items") or [])[:MAX_ITEMS]):
+            for j, item_id in enumerate(player.get("items") or []):
                 self.items[i, slot, j] = self.item_index.get(int(item_id), 0)
 
         if USE_HISTORY:
@@ -599,13 +767,15 @@ class ShopDataset:
             for j, item_id in enumerate(prefix):
                 self.hist[i, j] = self.item_index.get(int(item_id), 0)
 
-        # Tighter arrival gold (leak-free): the stored gold is from the frame
-        # BEFORE the visit, up to 60s stale. Add estimated income for the gap —
+        # Tighter arrival gold (pre-decision only): the stored gold is from the frame
+        # BEFORE the visit, up to 60s stale. Add estimated income for the gap â€”
         # average earn rate so far (totalGold / frame time, spending-invariant)
         # times seconds since the frame. Live rows carry exact gold (gold_exact)
         # and skip this. Feature only: legality masks stay on gold + GOLD_DRIFT.
         gold_feat = gold
-        if USE_GOLDEST and not row.get("gold_exact"):
+        if gold_x is not None:
+            pass  # gold_est is already at the visit timestamp â€” no interpolation
+        elif USE_GOLDEST and not row.get("gold_exact"):
             ts_ms = float(row.get("ts") or 0)
             delta_s = (ts_ms % 60000.0) / 1000.0
             frame_s = (ts_ms - ts_ms % 60000.0) / 1000.0
@@ -650,10 +820,10 @@ class ShopDataset:
                 float(row.get("deaths") or 0) / 10.0,
                 float(len(others)) / MAX_OTHERS,
                 float(row.get("n_inventory") or len(row.get("inventory") or [])) / 6.0,
-                float(row.get("can_complete") or 0),
-                float(row.get("n_completable") or 0) / 8.0,
-                float(row.get("cheapest_complete") or 0) / 3000.0,
-                float(row.get("gold_after_complete") or gold) / 3000.0,
+                float(aff["can_complete"] if aff else (row.get("can_complete") or 0)),
+                float(aff["n_completable"] if aff else (row.get("n_completable") or 0)) / 8.0,
+                float(aff["cheapest_complete"] if aff else (row.get("cheapest_complete") or 0)) / 3000.0,
+                float(aff["gold_after_complete"] if aff else (row.get("gold_after_complete") or gold)) / 3000.0,
                 ex["ap_share"],
                 ex["level_diff"] / 5.0,
                 ex["has_opp"],
@@ -668,22 +838,25 @@ class ShopDataset:
         for item_id in inventory:
             idx = self.item_index.get(item_id)
             if idx:
-                self.inv[i, idx] = min(int(self.inv[i, idx]) + 1, 3)
+                self.inv[i, idx] = int(self.inv[i, idx]) + 1
         hit = False
+        # The save head answers "buys nothing", so it must not be taught that
+        # buying a control ward is the same action: decision == "save" covers
+        # both. Only no_buy_death (and the SAVE sentinel it carries) is positive.
+        save_kind = row.get("save_kind")
         self.is_save[i] = int(
-            row.get("decision") == "save"
+            save_kind == "no_buy_death"
             or any(int(x) == SAVE_ITEM for x in (row.get("label_ids") or []))
         )
         tgt = self.label_index.get(int(row.get("target_id") or 0))
         if tgt is not None:
             self.target[i] = tgt
-        for item_id in row.get("label_ids") or []:
-            idx = self.label_index.get(int(item_id))
+        for item_id, count in counts.items():
+            idx = self.label_index.get(item_id)
             if idx is not None:
-                # multiset target: copy count, capped (duplicates are real buys)
-                self.targets[i, idx] = min(int(self.targets[i, idx]) + 1, MAX_COPIES)
+                self.targets[i, idx] = count
                 hit = True
-        if not hit:
+        if not hit and not counts and row.get('label_id'):
             self.targets[i, self.label_index.get(int(row.get("label_id") or 0), 0)] = 1
 
 
@@ -728,12 +901,12 @@ class PrefixModel(nn.Module):
         # so matchup adaptation doesn't depend on one attention hop being learned
         self.head = nn.Linear(2 * d_model, n_label)
         # multiset: per item, how many copies this visit buys (1..MAX_COPIES),
-        # trained only on bought items — the binary head decides *whether*
+        # trained only on bought items â€” the binary head decides *whether*
         self.count_head = nn.Linear(2 * d_model, n_label * MAX_COPIES)
-        # save: "this visit buys nothing" as its own calibrated binary — SAVE
+        # save: "this visit buys nothing" as its own calibrated binary â€” SAVE
         # as a pseudo-item can't calibrate across states (measured AUC 0.58)
         self.save_head = nn.Linear(2 * d_model, 1)
-        # plan: softmax over which final the player completes next — explicit
+        # plan: softmax over which final the player completes next â€” explicit
         # supervision for the component-altitude problem (right plan, wrong piece)
         self.target_head = nn.Linear(2 * d_model, n_label)
         self.n_label = n_label
@@ -835,6 +1008,9 @@ def predict_baskets(
                     if float(row_p[idx]) < threshold or len(basket) >= max_items:
                         break
                     item_id = labels[idx]
+                    if item_id == SAVE_ITEM:
+                        if not basket: basket.append(SAVE_ITEM)
+                        break
                     for _copy in range(int(want[b, idx])):
                         if len(basket) >= max_items:
                             break
@@ -853,10 +1029,11 @@ def predict_baskets(
 def calibrate_threshold(
     model, dataset: ShopDataset, rows: list[dict], labels: list[int], dragon, sample: int = 20000
 ) -> float:
-    """Pick the basket threshold by F1 on a test sample. Retrains that change
+    """Pick the basket threshold by multiset F1 on validation. Retrains that change
     the probability scale (pos_weight, new classes) recalibrate automatically."""
     n = min(sample, len(rows))
     probs_all = []
+    counts_all = []
     device = next(model.parameters()).device
     model.eval()
     seen = 0
@@ -874,37 +1051,43 @@ def calibrate_threshold(
             logits = splice_save(out["items"], out["save"], save_idx) if SAVE_SPLICE else out["items"]
             logits = logits.masked_fill(~batch["legal"].to(device), -1e4)
             probs_all.append(torch.sigmoid(logits).cpu())
+            counts_all.append((out['counts'].argmax(dim=2)+1).cpu())
             seen += logits.size(0)
             if seen >= n:
                 break
     probs_all = torch.cat(probs_all)[:n]
+    counts_all = torch.cat(counts_all)[:n]
     order_all = torch.argsort(probs_all, dim=1, descending=True)
     best_tau, best_f1 = 0.5, -1.0
     for tau in (0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8):
         f1 = 0.0
         scored = 0
         for r in range(n):
-            actual = {int(i) for i in (rows[r].get("label_ids") or []) if i}
+            actual = purchase_counts(rows[r])
             if not actual:
                 continue
             row_p = probs_all[r]
             budget = float(dataset.budget[r]) + GOLD_DRIFT
             inv_c = Counter(dataset.inventories[r])
-            basket: set[int] = set()
+            basket = Counter()
             for idx in order_all[r].tolist():
-                if float(row_p[idx]) < tau or len(basket) >= 5:
+                if float(row_p[idx]) < tau or sum(basket.values()) >= 6:
                     break
                 item_id = labels[idx]
-                cost = combine_cost(item_id, inv_c, dragon)
-                if cost > budget:
-                    continue
-                combine_cost(item_id, inv_c, dragon, consume=True)
-                inv_c[item_id] += 1
-                budget -= cost
-                basket.add(item_id)
-            hit = len(actual & basket)
-            p = hit / len(basket) if basket else 0.0
-            q = hit / len(actual)
+                if item_id == SAVE_ITEM:
+                    if not basket: basket[SAVE_ITEM] = 1
+                    break
+                for _ in range(int(counts_all[r,idx])):
+                    cost = combine_cost(item_id, inv_c, dragon)
+                    if cost > budget or sum(basket.values()) >= 6:
+                        break
+                    combine_cost(item_id, inv_c, dragon, consume=True)
+                    inv_c[item_id] += 1
+                    budget -= cost
+                    basket[item_id] += 1
+            hit = sum((actual & basket).values())
+            p = hit / sum(basket.values()) if basket else 0.0
+            q = hit / sum(actual.values())
             f1 += 2 * p * q / (p + q) if p + q > 0 else 0.0
             scored += 1
         f1 /= max(scored, 1)
@@ -962,18 +1145,24 @@ def per_decision(test: list[dict], guesses: list[list[int]]) -> None:
             continue
         c1, c3, count = per[kind]
         print(f"    {kind:<12} top-1 {c1 / count:.2f}  top-3 {c3 / count:.2f}   n={count}")
-    # save_auxiliary: "save" visits are no-buys AND ward-only buys; recommending
-    # either action there is the same advice (hold gold, ward up), so both count.
+    # Diagnostic, NOT save accuracy: over visits where the player spent nothing
+    # on their build (a no-buy or wards only), how often do we also advise not
+    # spending on the build? Counting a ward recommendation as a correct "save"
+    # conflates two different actions, so this is reported under its own name
+    # and never as the save metric.
     aux_ok = set(PINK) | {SAVE_ITEM}
     a1 = a3 = n_aux = 0
     for row, guess in zip(test, guesses):
-        if row.get("decision") != "save":
+        if (row.get("save_kind") or row.get("decision")) not in ("no_buy_death", "ward_only", "save"):
             continue
         n_aux += 1
         a1 += bool(guess) and guess[0] in aux_ok
         a3 += any(g in aux_ok for g in guess)
     if n_aux:
-        print(f"    {'save_aux':<12} top-1 {a1 / n_aux:.2f}  top-3 {a3 / n_aux:.2f}   n={n_aux}  (ward or save both correct)")
+        print(
+            f"    {'no_build_spend':<12} top-1 {a1 / n_aux:.2f}  top-3 {a3 / n_aux:.2f}   "
+            f"n={n_aux}  (diagnostic: advised no build spend; NOT save precision)"
+        )
 
 
 def per_champ(test: list[dict], guesses: list[list[int]], limit: int = 8) -> None:
@@ -1021,18 +1210,63 @@ def _windows_full_speed() -> None:
         pass
 
 
+def save_candidate(payload, destination):
+    from app.dataset_artifacts import replace_retry
+    pending = destination.with_suffix('.pt.partial')
+    with pending.open('xb') as handle:
+        torch.save(payload,handle)
+        handle.flush()
+        os.fsync(handle.fileno())
+    replace_retry(pending,destination)
+
+
 def main() -> None:
+    from app.pipeline_guard import require_pipeline_clear
+    generation = None
+    if (ML_DIR / 'generation_manifest.json').exists():
+        from app.dataset_generations import verify_generation, validate_run_directory
+        generation = verify_generation(ML_DIR)
+        validate_run_directory(ML_DIR,RUN_DIR)
+        if EPOCHS != 1:
+            raise SystemExit('A pipeline smoke stage is exactly one epoch; comparison training is a later gate')
+        RUN_DIR.mkdir(parents=True,exist_ok=True)
+        global MAX_ITEMS, MAX_COPIES, INVENTORY_ENCODING
+        schema = json.loads(SPLIT_MANIFEST_PATH.read_text(encoding='utf-8'))['input_schema']
+        MAX_ITEMS = schema['max_modeled_inventory_items']
+        MAX_COPIES = schema['max_copies_of_one_item']
+        INVENTORY_ENCODING = 'canonical-multiset-v1'
+    else:
+        require_pipeline_clear("training")
+    out_path = RUN_DIR / os.environ.get('PREFIX_OUT','candidate.pt')
+    if out_path.parent.resolve() != RUN_DIR or out_path.exists() or out_path.with_suffix('.pt.partial').exists():
+        raise SystemExit('Artifact must be a new file directly in the run directory')
     _windows_full_speed()
     train_path = ML_DIR / "visits_train.jsonl"
-    test_path = ML_DIR / "visits_test.jsonl"
-    if not train_path.exists() or not test_path.exists():
-        raise SystemExit("Run scripts/baseline.py first so the jsonl files exist.")
+    # Training scores itself on VALIDATION only. Every number this script prints
+    # — top-k, per-decision, basket, the calibrated threshold — has been used to
+    # pick a recipe at some point, which is exactly what disqualifies a split
+    # from being a final test set. visits_test.jsonl is not opened here; score a
+    # frozen artifact against it with scripts/eval_policy.py --split test.
+    val_path = ML_DIR / "visits_val.jsonl"
+    if not train_path.exists() or not val_path.exists():
+        raise SystemExit(
+            "Run scripts/baseline.py first so the split exists "
+            "(data/ml/visits_train.jsonl + visits_val.jsonl)."
+        )
+    # Fail before allocating tensors or consuming a 90-minute run when the
+    # prospective artifact could not be tied to a frozen export.
+    provenance = training_provenance()
+    if generation:
+        from app.dataset_artifacts import sha256
+        provenance.update(generation_manifest_sha256=sha256(ML_DIR / 'generation_manifest.json'),
+                          purpose='pipeline_smoke_only',dataset_generation=str(ML_DIR),
+                          target_encoding=TARGET_ENCODING,inventory_encoding=INVENTORY_ENCODING)
     torch.manual_seed(SEED)
     np.random.seed(SEED)
     # Pass 1 (streaming): vocabulary, label counts, and baseline counters from
-    # the train export; only slim scoring rows are retained for the test set.
+    # the train export; only slim scoring rows are retained for the val set.
     # Full rows are never materialized (they do not fit in RAM).
-    print("Scanning train export…", flush=True)
+    print("Scanning train exportâ€¦", flush=True)
     champ_ids: set[int] = set()
     item_ids: set[int] = set()
     label_counts: Counter = Counter()
@@ -1054,25 +1288,27 @@ def main() -> None:
                 item_ids.add(int(i))
         by_champ[row["champion"]][row["label_id"]] += 1
         global_counts[row["label_id"]] += 1
-        for item_id in row.get("label_ids") or [row["label_id"]]:
+        # BCE predicts presence once per item; the count head retains quantity.
+        # Copy frequency is not positive-example frequency for the BCE weight.
+        for item_id in purchase_counts(row):
             if item_id:
                 label_counts[int(item_id)] += 1
     print(f"scanned train {n_train}", flush=True)
-    test: list[dict] = []
-    for row in stream_rows(test_path):
-        test.append({key: row.get(key) for key in SLIM_KEYS})
+    val: list[dict] = []
+    for row in stream_rows(val_path):
+        val.append({key: row.get(key) for key in SLIM_KEYS})
         for player in row.get("others") or []:
             if not player.get("champion_id"):
                 champ_ids.add(abs(hash(player.get("champion") or "")) % 10000 + 1)
-    print(f"train {n_train} shops  test {len(test)} shops", flush=True)
+    print(f"train {n_train} shops  val {len(val)} shops", flush=True)
 
-    base = baseline_guesses(by_champ, global_counts, test)
-    b1, b3 = score_guesses(test, base)
+    base = baseline_guesses(by_champ, global_counts, val)
+    b1, b3 = score_guesses(val, base)
     print(flush=True)
     print("baseline  (champion frequency only)", flush=True)
     print(f"  top-1  {b1:.2f}", flush=True)
     print(f"  top-3  {b3:.2f}", flush=True)
-    per_decision(test, base)
+    per_decision(val, base)
 
     champ_index = _index_map(champ_ids)
     item_index = _index_map(item_ids)
@@ -1081,13 +1317,42 @@ def main() -> None:
     counts = torch.zeros(len(label_ids))
     for item_id, c in label_counts.items():
         counts[label_index[item_id]] = c
-    # Low cap: trustworthy confidence over rare-item recall (owner's framing —
+    # Low cap: trustworthy confidence over rare-item recall (owner's framing â€”
     # inflated rare-item probabilities "boost great matchup choices but also
     # highlight mistakes").
-    pos_weight = ((n_train - counts) / counts.clamp(min=1.0)).clamp(max=POS_WEIGHT_CAP)
+    ratio = (n_train - counts) / counts.clamp(min=1.0)
+    if POSW_CUSTOM:
+        lo, peak, tail = 8.0, 24.0, 12.0
+        logc = counts.clamp(min=1.0).log()
+        spread = (logc.max() - logc.min()).clamp(min=1e-6)
+        rarity = (logc.max() - logc) / spread  # 0 = most frequent, 1 = rarest
+        caps = torch.where(
+            rarity <= 0.6,
+            lo + (peak - lo) * (rarity / 0.6),
+            peak + (tail - peak) * ((rarity - 0.6) / 0.4),
+        )
+        for special in (SAVE_ITEM, *PINK):
+            idx = label_index.get(special)
+            if idx is not None:
+                caps[idx] = lo
+        pos_weight = torch.minimum(ratio, caps)
+        print(
+            f"pos_weight custom bump {lo:g}->{peak:g}->{tail:g} "
+            "(SAVE+wards pinned low)",
+            flush=True,
+        )
+    elif POSW_SCHED:
+        lo, hi = (float(x) for x in POSW_SCHED.split(":"))
+        logc = counts.clamp(min=1.0).log()
+        spread = (logc.max() - logc.min()).clamp(min=1e-6)
+        rarity = (logc.max() - logc) / spread  # 0 = most frequent label, 1 = rarest
+        pos_weight = torch.minimum(ratio, lo + (hi - lo) * rarity)
+        print(f"pos_weight schedule {lo:g}:{hi:g} (per-label caps by rarity)", flush=True)
+    else:
+        pos_weight = ratio.clamp(max=POS_WEIGHT_CAP)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dragon = default_dragon()
+    dragon = dragon_for_patch(provenance["patch"])
     print(flush=True)
     print(
         f"Board model  basket (all buys)  9 others x {MAX_ITEMS} slots  device={device}  "
@@ -1105,25 +1370,35 @@ def main() -> None:
         "train", train_path, lambda: _stream(train_path), n_train,
         champ_index, item_index, label_index, dragon,
     )
-    test_ds = _dataset(
-        "test", test_path, lambda: _stream(test_path), len(test),
+    val_ds = _dataset(
+        "val", val_path, lambda: _stream(val_path), len(val),
         champ_index, item_index, label_index, dragon,
     )
     print(f"tensors ready in {time.monotonic() - prep_started:.1f}s", flush=True)
 
     if device.type == "cuda":
-        need = train_ds.nbytes() + test_ds.nbytes()
+        need = train_ds.nbytes() + val_ds.nbytes()
         free, _total = torch.cuda.mem_get_info()
         if need < free * 0.7:
             train_ds.to_device(device)
-            test_ds.to_device(device)
+            val_ds.to_device(device)
             print(f"datasets resident on GPU ({need / 1e9:.2f} GB)", flush=True)
         else:
             print(f"datasets too big for GPU ({need / 1e9:.2f} GB), streaming from CPU", flush=True)
 
     model = PrefixModel(len(champ_index), len(item_index), len(label_ids), len(item_index) + 1).to(device)
+    blob0 = None
+    if FREEZE_TRUNK and not INIT_FROM:
+        raise SystemExit('A frozen-trunk stage requires a matching trained trunk')
     if INIT_FROM:
-        blob0 = torch.load(ML_DIR / INIT_FROM, map_location="cpu", weights_only=False)
+        blob0 = torch.load(RUN_DIR / INIT_FROM, map_location="cpu", weights_only=False)
+        if (blob0.get('provenance',{}).get('export_fingerprint') != provenance['export_fingerprint']
+            or blob0.get('champ_index') != champ_index or blob0.get('item_index') != item_index
+            or blob0.get('label_ids') != label_ids):
+            raise SystemExit('Warm start must use the same frozen generation and vocabularies')
+        for key, value in {'max_items':MAX_ITEMS,'max_copies':MAX_COPIES,'inventory_encoding':INVENTORY_ENCODING}.items():
+            if blob0['config'].get(key) != value:
+                raise SystemExit(f'Warm-start representation mismatch: {key}')
         missing0, unexpected0 = model.load_state_dict(blob0["state_dict"], strict=False)
         assert not unexpected0, unexpected0
         print(f"warm-started from {INIT_FROM} ({len(missing0)} fresh head tensors)", flush=True)
@@ -1160,7 +1435,7 @@ def main() -> None:
             bought = counts > 0
             if bool(bought.any()):
                 loss = loss + COUNT_LOSS_W * count_loss_fn(
-                    out["counts"][bought], (counts[bought] - 1).clamp(max=MAX_COPIES - 1)
+                    out["counts"][bought], counts[bought] - 1
                 )
             loss = loss + SAVE_LOSS_W * save_loss_fn(
                 out["save"].squeeze(1), batch["is_save"].to(device)
@@ -1178,32 +1453,32 @@ def main() -> None:
         print(f"  epoch {epoch}/{EPOCHS}  loss {float(total) / max(n, 1):.3f}", flush=True)
     print(f"trained in {time.monotonic() - started:.1f}s", flush=True)
 
-    guesses = predict_top3(model, test_ds, device, label_ids)
-    m1, m3 = score_guesses(test, guesses)
+    guesses = predict_top3(model, val_ds, device, label_ids)
+    m1, m3 = score_guesses(val, guesses)
     print(flush=True)
     print("board model  (gold + your inventory + lobby builds + full shop basket)", flush=True)
     print(f"  main item top-1  {m1:.2f}   vs baseline {b1:.2f}", flush=True)
     print(f"  main item top-3  {m3:.2f}   vs baseline {b3:.2f}", flush=True)
     print(flush=True)
-    score_basket(test, guesses)
+    score_basket(val, guesses)
     print(flush=True)
-    per_decision(test, guesses)
+    per_decision(val, guesses)
     if TARGET_BLEND > 0:
         tmatrix = target_matrix(label_ids, dragon).to(device)
-        guesses_b = predict_top3(model, test_ds, device, label_ids, blend=TARGET_BLEND, tmatrix=tmatrix)
-        tb1, tb3 = score_guesses(test, guesses_b)
+        guesses_b = predict_top3(model, val_ds, device, label_ids, blend=TARGET_BLEND, tmatrix=tmatrix)
+        tb1, tb3 = score_guesses(val, guesses_b)
         print(flush=True)
         print(f"with target blend {TARGET_BLEND}  top-1 {tb1:.2f}  top-3 {tb3:.2f}", flush=True)
-        per_decision(test, guesses_b)
+        per_decision(val, guesses_b)
     print(flush=True)
-    per_champ(test, guesses)
+    per_champ(val, guesses)
     print(flush=True)
-    tau = calibrate_threshold(model, test_ds, test, label_ids, dragon)
-    baskets = predict_baskets(model, test_ds, device, label_ids, dragon, threshold=tau)
-    score_pred_baskets(test, baskets, tau)
+    # Gate 5 checks mechanics with one fixed recipe; it is not a threshold sweep.
+    tau = BASKET_THRESHOLD if generation else calibrate_threshold(model, val_ds, val, label_ids, dragon)
+    baskets = predict_baskets(model, val_ds, device, label_ids, dragon, threshold=tau)
+    score_pred_baskets(val, baskets, tau)
 
-    out_path = ML_DIR / os.environ.get("PREFIX_OUT", "prefix_model.pt")
-    torch.save(
+    save_candidate(
         {
             "state_dict": model.state_dict(),
             "champ_index": champ_index,
@@ -1211,24 +1486,39 @@ def main() -> None:
             "label_ids": label_ids,
             "config": {
                 "d_model": D_MODEL,
+                "patch": provenance["patch"],
+                "ddragon_version": provenance["ddragon_version"],
+                "static_data_sha256": provenance["static_data_sha256"],
                 "layers": N_LAYERS,
                 "ff_dim": FF_DIM,
                 "heads": N_HEADS,
                 "max_others": MAX_OTHERS,
+                "max_basket_items": 6,
                 "max_items": MAX_ITEMS,
+                "inventory_encoding": INVENTORY_ENCODING,
+                "target_encoding": TARGET_ENCODING,
                 "query_dim": QUERY_DIM,
                 "epochs": EPOCHS,
                 "extras": USE_EXTRAS,
                 "cosine": USE_COSINE,
                 "history": USE_HISTORY,
                 "gold_est": USE_GOLDEST,
+                "gold_x": USE_GOLDX,
+                # what the budget actually was â€” never call this "exact gold"
+                "gold_input": "prequential-v2" if USE_GOLDX else "stale-frame-gold",
                 "runes": USE_RUNES,
                 "counts": True,  # multiset baskets: count head is trained
                 "max_copies": MAX_COPIES,
                 "pos_weight_cap": POS_WEIGHT_CAP,
-                "save_head": True,  # calibrated buy-nothing binary (gate + display)
+                "posw_sched": POSW_SCHED or None,
+                "posw_custom": POSW_CUSTOM,
+                "item_score_semantics": "pos-weighted ranking score; not calibrated probability",
+                # Manual-recall no-buys are invisible in Match-V5; this head
+                # models only the observed post-death no-buy target.
+                "save_head": SAVE_LOSS_W > 0 or bool(blob0 and blob0['config'].get('save_head')),
+                "save_target": "post_death_no_buy_only",
                 "save_splice": SAVE_SPLICE,  # measured: keep item head's SAVE ranking
-                "target_head": True,  # next-completed-final plan supervision
+                "target_head": TARGET_LOSS_W > 0 or bool(blob0 and blob0['config'].get('target_head')),
                 "target_blend": TARGET_BLEND,
                 "init_from": INIT_FROM or None,
                 "frozen_trunk": FREEZE_TRUNK,
@@ -1236,10 +1526,17 @@ def main() -> None:
                 "gold_drift": GOLD_DRIFT,
                 "basket_threshold": tau,
             },
-            "metrics": {"top1": m1, "top3": m3, "baseline_top1": b1, "baseline_top3": b3},
+            "metrics": {
+                "canonical_main_item_top1_validation_diagnostic": m1,
+                "canonical_main_item_top3_validation_diagnostic": m3,
+                "champion_frequency_baseline_top1_diagnostic": b1,
+                "champion_frequency_baseline_top3_diagnostic": b3,
+            },
             "trained_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "train_rows": n_train,
-            "test_rows": len(test),
+            "val_rows": len(val),
+            "scored_on": "validation",
+            "provenance": provenance,
         },
         out_path,
     )

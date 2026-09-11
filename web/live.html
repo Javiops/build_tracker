@@ -42,6 +42,13 @@
   .savebig .coin { font-size: 26px; }
   .savebig .msg { font-size: 14px; color: #e8d9a8; }
   .offline { text-align: center; color: #7a8494; padding: 40px 0; }
+  .decision { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .decision p { color: #aeb7c7; font-size: 13px; max-width: 440px; }
+  button.session-btn { border: 1px solid #c8aa6e; border-radius: 7px; background: #c8aa6e; color: #16120a;
+                       padding: 8px 11px; font-weight: 700; font: inherit; cursor: pointer; }
+  button.session-btn.secondary { background: transparent; color: #aeb7c7; border-color: #465066; }
+  button.session-btn:disabled { opacity: .55; cursor: wait; }
+  .warning { color: #e8d9a8; font-size: 12px; line-height: 1.4; }
   .inv { display: flex; gap: 6px; flex-wrap: wrap; }
   .inv img { width: 26px; height: 26px; border-radius: 4px; border: 1px solid #2a3040; opacity: .85; }
   footer { margin-top: 14px; font-size: 11px; color: #55607080; text-align: center; }
@@ -65,7 +72,7 @@
 <div id="closer" title="Close overlay">✕</div>
 <div class="wrap">
   <h1>BUILD TRACKER · LIVE</h1>
-  <div class="sub">what a Challenger would do in this spot — three ways to play the visit</div>
+  <div class="sub">historical high-elo options for an explicit shop decision</div>
   <div id="content"><div class="card offline">Waiting for a game…</div></div>
   <footer id="foot"></footer>
 </div>
@@ -78,7 +85,7 @@ if (new URLSearchParams(location.search).has("overlay")) {
     if (window.pywebview) window.pywebview.api.close();
   });
 }
-const TIER_LABEL = { best: "Best pick", alternative: "Also strong", situational: "If you prefer" };
+const TIER_LABEL = { best: "First line", alternative: "Alternative", situational: "Another legal line" };
 
 function icon(ver, id) {
   return `https://ddragon.leagueoflegends.com/cdn/${ver}/img/item/${id}.png`;
@@ -92,8 +99,8 @@ function optionCard(ver, opt) {
         <span>holding for <b>${opt.toward.name}</b>${opt.toward.need ? ` — ${opt.toward.need}g to go` : " — affordable next base"}</span>
       </div>` : "";
     return `<div class="option save-card">
-      <div class="tier">Hold your gold</div>
-      <div class="savebig"><span class="coin">🪙</span><span class="msg">Buy nothing this visit${opt.toward ? "" : " — bank for the next spike"}</span></div>
+      <div class="tier">Hold option · experimental</div>
+      <div class="savebig"><span class="coin">◉</span><span class="msg">Buy nothing this visit${opt.toward ? "" : " — bank for the next spike"}</span></div>
       ${toward}
     </div>`;
   }
@@ -115,6 +122,74 @@ function optionCard(ver, opt) {
   </div>`;
 }
 
+function stateCard(d) {
+  const mins = Math.floor(d.game_time_s / 60), secs = String(d.game_time_s % 60).padStart(2, "0");
+  return `<div class="card state">
+    <b>${d.champion}</b><span>${d.role || ""}</span>
+    <span class="gold">${Math.floor(d.gold)}g</span>
+    <span>lvl ${d.level}</span><span>${mins}:${secs}</span>
+  </div>`;
+}
+
+function bindIdleButton() {
+  const button = document.getElementById("start-session");
+  if (button) button.addEventListener("click", startSession);
+}
+
+function bindActiveButton() {
+  const button = document.getElementById("cancel-session");
+  if (button) button.addEventListener("click", async () => {
+    await fetch("/api/live/session", { method: "DELETE" });
+    tick();
+  });
+}
+
+function render(d) {
+  const ver = d.ddragon_version;
+  const provenance = d.model_provenance || {};
+  const legacy = provenance.status === "legacy_unverified";
+  if (!d.advice_ready) {
+    content.innerHTML = `${stateCard(d)}
+      <div class="card decision">
+        <p>Open a decision session only when the shop is open and you are choosing. It records this exact wallet and whether you buy or hold; no advice is generated while you are playing normally.</p>
+        <button id="start-session" class="session-btn">I’m deciding in shop</button>
+      </div>
+      ${legacy ? `<div class="card warning">Loaded model is a legacy artifact with unverified gold and policy provenance. Its advice is logged as experimental.</div>` : ""}`;
+    bindIdleButton();
+    foot.textContent = "no recommendation outside an explicit shop decision";
+    return;
+  }
+  const options = (d.options || []).map(o => optionCard(ver, o)).join("");
+  const remaining = d.decision_session?.expires_in_s;
+  content.innerHTML = `${stateCard(d)}
+    <div class="card decision">
+      <p>Decision session active${Number.isFinite(remaining) ? ` · ${remaining}s remaining` : ""}. A purchase ends it; no purchase after 90 seconds is recorded as a hold decision.</p>
+      <button id="cancel-session" class="session-btn secondary">Cancel session</button>
+    </div>
+    ${legacy ? `<div class="card warning">Experimental legacy model: no validated displayed-policy or causal-gold result is claimed.</div>` : ""}
+    ${options ? `<div class="options">${options}</div>` :
+      `<div class="card offline" style="padding:20px 0">No legal option cleared the current threshold.</div>`}
+    <div class="card">
+      <div class="label" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7a8494;margin-bottom:8px">Your items</div>
+      <div class="inv">${d.inventory.map(it => `<img title="${it.name}" src="${icon(ver, it.item_id)}">`).join("")}</div>
+    </div>`;
+  bindActiveButton();
+  foot.textContent = `explicit shop session · model trained ${d.model_trained_at || "?"}`;
+}
+
+async function startSession() {
+  const button = document.getElementById("start-session");
+  if (button) { button.disabled = true; button.textContent = "Starting…"; }
+  try {
+    const r = await fetch("/api/live/session", { method: "POST" });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.detail || "Could not start a shop session.");
+    render(d);
+  } catch (e) {
+    content.innerHTML += `<div class="card offline">${e.message || "Could not start a shop session."}</div>`;
+  }
+}
+
 async function tick() {
   try {
     const r = await fetch("/api/live");
@@ -128,22 +203,7 @@ async function tick() {
       content.innerHTML = `<div class="card offline">No game detected — start a match or Practice Tool.</div>`;
       return;
     }
-    const ver = d.ddragon_version;
-    const mins = Math.floor(d.game_time_s / 60), secs = String(d.game_time_s % 60).padStart(2, "0");
-    const options = (d.options || []).map(o => optionCard(ver, o)).join("");
-    content.innerHTML = `
-      <div class="card state">
-        <b>${d.champion}</b><span>${d.role || ""}</span>
-        <span class="gold">${Math.floor(d.gold)}g</span>
-        <span>lvl ${d.level}</span><span>${mins}:${secs}</span>
-      </div>
-      ${options ? `<div class="options">${options}</div>` :
-        `<div class="card offline" style="padding:20px 0">Nothing confident enough right now — farm on.</div>`}
-      <div class="card">
-        <div class="label" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7a8494;margin-bottom:8px">Your items</div>
-        <div class="inv">${d.inventory.map(it => `<img title="${it.name}" src="${icon(ver, it.item_id)}">`).join("")}</div>
-      </div>`;
-    foot.textContent = `model trained ${d.model_trained_at || "?"} · refreshes every 2s`;
+    render(d);
   } catch (e) {
     content.innerHTML = `<div class="card offline">Server unreachable.</div>`;
   }

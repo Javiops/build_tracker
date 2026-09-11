@@ -1338,8 +1338,14 @@
         "KC"
       ]
     ],
+    "ok": true,
     "label": "KC kyeahoo",
-    "ok": false
+    "puuid": "ty9w13Ofol93R0jhlTF_g6gubD_uWsI8_Sb5KMmoFKhssNi2Utn9CPLvpQy7-LH9qtN7ZReB4xbEgQ",
+    "game_name": "Kyeahoo",
+    "tag_line": "KCW",
+    "platform": "euw1",
+    "regional": "europe",
+    "source": "db"
   },
   {
     "id": "Caliste",

@@ -17,7 +17,7 @@ import httpx
 
 from app.config import DATA_DIR
 from app.ddragon import DataDragon
-from app.shop_econ import inventory_state
+from app.shop_econ import PINK, inventory_state
 
 LIVE_URL = "https://127.0.0.1:2999/liveclientdata/allgamedata"
 TEAM_IDS = {"ORDER": 100, "CHAOS": 200}
@@ -66,13 +66,62 @@ def _position(player: dict) -> str:
 
 
 def _player_items(player: dict, dragon: DataDragon) -> list[int]:
+    """Keep the observed item multiset, including any exposed role-slot items.
+
+    Read the documented items array once. A slot index is not a second item,
+    and no undocumented role-inventory field or earlier snapshot is merged in.
+    """
     out: list[int] = []
     for item in player.get("items") or []:
         item_id = int(item.get("itemID") or 0)
         if not item_id or dragon.classify(item_id)["skip"]:
             continue
-        out.extend([item_id] * int(item.get("count") or 1))
+        count = item.get("count")
+        out.extend([item_id] * (int(count) if count is not None else 1))
     return out
+
+
+def _slot_state(player: dict, inventory: list[int], dragon: DataDragon) -> dict:
+    """Expose observed capacity and preserve missing role-slot information.
+
+    Reviewed 2026-09-11: Riot's Live Client docs and the local September 2--4
+    captures expose items/count/slot, but no verified bot-quest completion or
+    separate role inventory. The captures use slots 0--5 for ordinary items
+    and 6 for trinkets. An absent boot/ward may be unowned OR omitted from the
+    role slot; neither time, role, nor an unfamiliar slot number resolves it.
+    https://developer.riotgames.com/docs/lol#game-client-api_live-client-data-api
+
+    Do not infer completion from missing quest items or invent owned items.
+    Consumers must withhold that role's boot/ward buys when ownership is
+    unknown. The source items still count wherever the API actually lists them.
+    """
+    role = _position(player)
+    boots = any(
+        dragon.classify(item_id).get("is_boots")
+        or dragon.classify(item_id).get("is_basic_boots")
+        for item_id in inventory
+    )
+    wards = any(item_id in PINK for item_id in inventory)
+    unmodeled_slots = set()
+    for item in player.get("items") or []:
+        item_id = int(item.get("itemID") or 0)
+        slot = item.get("slot")
+        if (
+            item_id
+            and type(slot) is int
+            and 0 <= slot < 6
+            and dragon.classify(item_id)["skip"]
+        ):
+            # A potion stack occupies one physical slot, not count slots.
+            unmodeled_slots.add(slot)
+    return {
+        "slot_state_version": "role-slots-v1",
+        "bot_quest_complete": None,
+        "unmodeled_regular_slots": len(unmodeled_slots),
+        "role_slot_inventory_unknown": (
+            (role == "BOTTOM" and not boots) or (role == "UTILITY" and not wards)
+        ),
+    }
 
 
 def _objectives(snap: dict, players_by_name: dict[str, dict]) -> dict[int, dict]:
@@ -124,6 +173,7 @@ def snapshot_to_row(snap: dict, dragon: DataDragon) -> dict | None:
         if player is me:
             continue
         champ_id = dragon.champion_id_by_name(player.get("championName") or "")
+        player_items = _player_items(player, dragon)
         others.append(
             {
                 "champion": player.get("championName") or "",
@@ -132,7 +182,8 @@ def snapshot_to_row(snap: dict, dragon: DataDragon) -> dict | None:
                 "role": _position(player),
                 "level": player.get("level"),
                 "gold": None,  # not exposed by the live API
-                "items": _player_items(player, dragon),
+                "items": player_items,
+                **_slot_state(player, player_items, dragon),
             }
         )
 
@@ -143,6 +194,11 @@ def snapshot_to_row(snap: dict, dragon: DataDragon) -> dict | None:
         "team_id": team,
         "gold": gold,  # exact, unlike the frame-stale training value
         "gold_exact": True,  # tells gold_est featurization not to add income drift
+        # GOLDX models read the budget from gold_est. Live is the ONLY place the
+        # value is genuinely exact — offline rows carry an approximation — so it
+        # gets its own version tag, and the trainer/predictor accept both.
+        "gold_est": gold,
+        "gold_est_version": "live-exact-v2",
         "total_gold": None,
         "keystone_id": int(((active.get("fullRunes") or {}).get("keystone") or {}).get("id") or 0),
         "sub_style": int(((active.get("fullRunes") or {}).get("secondaryRuneTree") or {}).get("id") or 0),
@@ -155,6 +211,7 @@ def snapshot_to_row(snap: dict, dragon: DataDragon) -> dict | None:
         "kills": my_scores.get("kills") or 0,
         "deaths": my_scores.get("deaths") or 0,
         "inventory": inventory,
+        **_slot_state(me, inventory, dragon),
         "can_complete": state["can_complete"],
         "n_completable": state["n_completable"],
         "cheapest_complete": state["cheapest_complete"],

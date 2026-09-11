@@ -6,22 +6,23 @@ from app.config import (
     FAKER,
     LADDER_REGIONS,
     LADDER_SIZE,
+    PATCH_STARTS_UTC,
     RANKED_SOLO_QUEUE,
     SOLO_QUEUE_NAME,
     patch_start_unix,
+    selected_patches,
 )
 from app.db import (
     game_exists,
     init_db,
-    insert_game,
-    insert_perspectives,
+    insert_reconstruction,
     match_participants,
     match_puuids,
     now_iso,
     set_meta,
     upsert_player,
 )
-from app.ddragon import DataDragon, latest_version
+from app.ddragon import DataDragon
 from app.reconstruct import patch_from_version, reconstruct_game, reconstruct_visits
 from app.riot import RiotClient, RiotError
 
@@ -40,7 +41,18 @@ def ingest_ladder(
 ) -> dict:
     init_db()
     emit = progress or (lambda _event: None)
-    patch = patch or patch_from_version(latest_version())
+    patch = ",".join(selected_patches(patch))
+    if any(p not in PATCH_STARTS_UTC for p in selected_patches(patch)):
+        emit(
+            {
+                "step": "ladder",
+                "message": (
+                    f"WARNING: patch {patch} has no PATCH_STARTS_UTC entry in app/config.py — "
+                    "using the 16-day fallback window (over-fetches match lists; the DTO patch "
+                    "filter still applies). Add the go-live date on patch day."
+                ),
+            }
+        )
     if start_time is None:
         start_time = patch_start_unix(patch)
     spec = LADDER_REGIONS.get(region)
@@ -236,7 +248,7 @@ def _ingest_match_perspectives(
     info = match.get("info") or {}
     if info.get("queueId") != RANKED_SOLO_QUEUE:
         return 0, 1
-    if patch_from_version(info.get("gameVersion") or "") != patch:
+    if patch_from_version(info.get("gameVersion") or "") not in selected_patches(patch):
         return 0, 1
     participants = info.get("participants") or []
     wanted = [p["puuid"] for p in participants if p.get("puuid") in ladder_set]
@@ -249,13 +261,11 @@ def _ingest_match_perspectives(
     for participant in participants:
         upsert_player(_player_from_match(participant, platform, regional))
     game, events = reconstruct_game(match, timeline, dragon)
-    insert_game(game, events)
     entries: list[tuple[dict, list[dict]]] = []
     for puuid in missing:
         match_row, visits = reconstruct_visits(match, timeline, puuid, dragon)
         entries.append((match_row, visits))
-    if entries:
-        insert_perspectives(entries)
+    insert_reconstruction(game, events, entries)
     return max(len(entries), 1), 0
 
 
@@ -267,7 +277,7 @@ def ingest_player_patch(
 ) -> dict:
     init_db()
     emit = progress or (lambda _event: None)
-    patch = patch or patch_from_version(latest_version())
+    patch = ",".join(selected_patches(patch))
     start_time = patch_start_unix(patch)
     platform = FAKER["platform"]
     regional = FAKER["regional"]
