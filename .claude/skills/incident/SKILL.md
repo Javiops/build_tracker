@@ -1,3 +1,8 @@
+---
+name: incident
+description: Triage a stalled job, a nonzero stage exit, an authentication error, or a data-validity finding in build_tracker. Use when output stalls, a pipeline stage fails, ingest returns 401/403, or a log looks wrong.
+---
+
 # Recovery incident
 
 Trigger: stalled output, a nonzero stage exit, an authentication error, or a data-validity finding.

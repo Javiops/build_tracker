@@ -1,3 +1,8 @@
+---
+name: run-experiment
+description: Run a model or decoder comparison in build_tracker under the experiment protocol — recorded question, paired validation selection, isolated scheduled job. Use when comparing trainers, decoders or features.
+---
+
 # Run an experiment
 
 Trigger: a model or decoder comparison, after reconstruction correctness is established. Read HANDOFF.md and the latest audit first. The 2026-09-10 start-state finding is unresolved; this procedure is not clearance to train.

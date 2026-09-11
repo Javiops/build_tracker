@@ -1,3 +1,8 @@
+---
+name: promote-model
+description: Promote a build_tracker release candidate to the served artifact, with provenance and digest binding. Use only when the owner has authorized a specific candidate after reviewing displayed-policy validation.
+---
+
 # Promote a model
 
 Trigger: the owner has selected and authorized a release candidate after reviewing displayed-policy validation. Resolve known reconstruction defects first. This document does not authorize promotion.

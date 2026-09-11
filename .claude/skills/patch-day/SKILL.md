@@ -1,3 +1,8 @@
+---
+name: patch-day
+description: Transition build_tracker to a new League game patch: verify patch identity and timing, update PATCH_STARTS_UTC and Data Dragon pins, and decide the export patch. Use when the target game patch changes.
+---
+
 # Patch day
 
 Trigger: the target game patch changes. First inspect active jobs and HANDOFF.md. Do not modify a running ingestion sequence or regenerate its API key.
