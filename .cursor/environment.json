@@ -1,0 +1,18 @@
+{
+  "name": "build_tracker",
+  "user": "ubuntu",
+  "install": "bash scripts/cloud-install.sh",
+  "terminals": [
+    {
+      "name": "web",
+      "command": "source .venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000",
+      "description": "FastAPI + static UI (Build Tracker) on http://localhost:8000"
+    }
+  ],
+  "ports": [
+    {
+      "name": "web server",
+      "port": 8000
+    }
+  ]
+}
